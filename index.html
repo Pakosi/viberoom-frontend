@@ -332,7 +332,7 @@ grid.appendChild(d);
 // ==================== THREE CORE ====================
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0814);
-scene.fog = new THREE.FogExp2(0x0a0814, 0.012);
+scene.fog = new THREE.FogExp2(0x0a0814, 0.004);
 
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.1, 600);
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -342,7 +342,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.6;
 document.getElementById('game').appendChild(renderer.domElement);
 
 // Reusable ray/vec to avoid GC
@@ -352,11 +352,11 @@ const _v3 = new THREE.Vector3();
 const _bbox = new THREE.Box3();
 
 // ==================== LIGHTING — cohesive warm + cool accents ====================
-scene.add(new THREE.AmbientLight(0x2a2438, 0.45));
+scene.add(new THREE.AmbientLight(0xffffff, 0.75));
 const hemi = new THREE.HemisphereLight(0xffe6c4, 0x1a1428, 0.35);
 scene.add(hemi);
 
-const sun = new THREE.DirectionalLight(0xffd8a0, 0.7);
+const sun = new THREE.DirectionalLight(0xffd8a0, 1.1);
 sun.position.set(60, 100, 40);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -367,7 +367,7 @@ sun.shadow.bias = -0.0005;
 scene.add(sun);
 
 // Warm chandelier over meeting table (animated)
-const chandelier = new THREE.PointLight(0xffb870, 1.4, 28, 1.8);
+const chandelier = new THREE.PointLight(0xffd6a0, 0.9, 22, 2);
 chandelier.position.set(0, 9, 0);
 chandelier.castShadow = true;
 chandelier.shadow.mapSize.set(512, 512);
@@ -654,9 +654,18 @@ l.add(base);
 const screenBack = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.72, 0.04), mat(0x0a0a0a, { roughness: 0.4, metalness: 0.7 }));
 screenBack.position.set(0, 0.36, -0.36);
 screenBack.rotation.x = -0.18; l.add(screenBack);
-const disp = new THREE.Mesh(new THREE.PlaneGeometry(0.98, 0.6), new THREE.MeshBasicMaterial({ color: screenColor }));
-disp.position.set(0, 0.36, -0.34);
-disp.rotation.x = -0.18; l.add(disp);
+const disp = new THREE.Mesh(
+  new THREE.PlaneGeometry(0.98, 0.6),
+  new THREE.MeshBasicMaterial({
+    color: screenColor,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1
+  })
+);
+disp.position.set(0, 0.36, -0.31);
+disp.rotation.x = -0.18;
+l.add(disp);
 l.position.set(x, 1.4, z);
 l.rotation.y = rotY;
 return l;
