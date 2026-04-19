@@ -73,6 +73,20 @@
   #ttt .cell:active { background: #ffd24d; color: #1a1510; }
   #ttt-status { text-align: center; color: #ffd24d; margin-bottom: 8px; font-size: 13px; }
   #ttt-reset { display: block; margin: 10px auto 0; background: #1a1510; color: #ffd24d; border: 2px solid #ffd24d; padding: 8px 16px; font-family: inherit; cursor: pointer; font-size: 11px; letter-spacing: 2px; }
+
+  /* Admin edit panel */
+  #edit-panel { position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%); background: rgba(10,6,18,0.95); border: 3px solid #ff4dc8; padding: 12px; z-index: 30; display: none; flex-direction: column; align-items: center; gap: 8px; box-shadow: 0 0 30px rgba(255,77,200,0.5); }
+  #edit-title { color: #ff4dc8; font-size: 11px; letter-spacing: 2px; font-weight: bold; }
+  .ed-grid { display: grid; grid-template-columns: repeat(3, 54px); grid-template-rows: repeat(3, 54px); gap: 6px; }
+  .ed-btn { background: #1a1510; color: #ffd24d; border: 2px solid #ffd24d; font-family: inherit; font-size: 18px; font-weight: bold; cursor: pointer; touch-action: none; }
+  .ed-btn:active { background: #ffd24d; color: #1a1510; }
+  .ed-btn.ed-save { background: #ff4dc8; color: #fff; border-color: #fff; font-size: 22px; }
+  .ed-exit { background: #1a1510; color: #ff4d4d; border: 2px solid #ff4d4d; padding: 8px 16px; font-family: inherit; font-size: 12px; letter-spacing: 2px; cursor: pointer; }
+  #btn-edit { background: rgba(255,77,200,0.92) !important; border-color: #fff !important; color: #fff !important; }
+  @media (pointer: coarse), (max-width: 900px) {
+    #edit-panel { bottom: 210px; }
+    .ed-grid { grid-template-columns: repeat(3, 58px); grid-template-rows: repeat(3, 58px); }
+  }
 </style>
 </head>
 <body>
@@ -104,6 +118,23 @@
   <div id="prompt"></div>
   <div id="banners"></div>
 
+  <!-- Admin edit panel (mobile-friendly) -->
+  <div id="edit-panel">
+    <div id="edit-title">◆ EDIT MODE · tap object ◆</div>
+    <div class="ed-grid">
+      <button id="ed-rotl" class="ed-btn">⟲</button>
+      <button id="ed-up" class="ed-btn">▲</button>
+      <button id="ed-rotr" class="ed-btn">⟳</button>
+      <button id="ed-left" class="ed-btn">◀</button>
+      <button id="ed-yup" class="ed-btn">+Y</button>
+      <button id="ed-right" class="ed-btn">▶</button>
+      <button id="ed-ydown" class="ed-btn">-Y</button>
+      <button id="ed-down" class="ed-btn">▼</button>
+      <button id="ed-save" class="ed-btn ed-save">💾</button>
+    </div>
+    <button id="ed-exit" class="ed-exit">✕ EXIT</button>
+  </div>
+
   <div id="mobile-ctrls">
     <div id="joystick"><div id="joy-knob"></div></div>
     <div id="mobile-btns">
@@ -115,7 +146,10 @@
         <button id="btn-t">💬</button>
         <button id="btn-e">E</button>
       </div>
-      <button id="btn-jump" style="margin-left:auto; width:62px;">↑</button>
+      <div class="row">
+        <button id="btn-edit" style="display:none;">✎</button>
+        <button id="btn-jump">↑</button>
+      </div>
     </div>
   </div>
 
@@ -235,7 +269,11 @@ import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/js
 // CHANGE THIS to your deployed server in production
 const WS_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
   ? 'ws://localhost:3000'
-  : 'wss://viberoom-server-production.up.railway.app'; // <-- replace with your deployed WS URL
+  : 'wss://YOUR-SERVER.up.railway.app'; // <-- replace with your deployed WS URL
+
+// ==================== DEVICE DETECTION ====================
+const IS_MOBILE = window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 900;
+const IS_LOW_END = IS_MOBILE && (navigator.hardwareConcurrency || 4) <= 4;
 
 // ==================== CHARACTER PRESETS ====================
 const CHARS = [
@@ -264,13 +302,13 @@ CHARS.forEach((c, i) => {
 // ==================== THREE SCENE ====================
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0612);
-scene.fog = new THREE.Fog(0x0a0612, 45, 120);
+scene.fog = new THREE.Fog(0x0a0612, IS_MOBILE ? 50 : 80, IS_MOBILE ? 150 : 260);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 800);
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({ antialias: !IS_MOBILE, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.25 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = !IS_LOW_END;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding;
 document.getElementById('game').appendChild(renderer.domElement);
@@ -278,15 +316,18 @@ document.getElementById('game').appendChild(renderer.domElement);
 scene.add(new THREE.AmbientLight(0xffffff, 0.3));
 const sun = new THREE.DirectionalLight(0xfff2cc, 0.85);
 sun.position.set(80, 120, 60);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.castShadow = !IS_LOW_END;
+const SHADOW_SIZE = IS_MOBILE ? 1024 : 2048;
+sun.shadow.mapSize.set(SHADOW_SIZE, SHADOW_SIZE);
 sun.shadow.camera.left = -140; sun.shadow.camera.right = 140;
 sun.shadow.camera.top = 140; sun.shadow.camera.bottom = -140;
 sun.shadow.camera.near = 1; sun.shadow.camera.far = 320;
 scene.add(sun);
-const warm1 = new THREE.PointLight(0xff8a4d, 0.6, 60); warm1.position.set(-30, 8, 20); scene.add(warm1);
-const warm2 = new THREE.PointLight(0x4dc8ff, 0.5, 50); warm2.position.set(30, 8, -20); scene.add(warm2);
-const warm3 = new THREE.PointLight(0xff4dc8, 0.4, 50); warm3.position.set(0, 8, 40); scene.add(warm3);
+if (!IS_LOW_END) {
+  const warm1 = new THREE.PointLight(0xff8a4d, 0.6, 60); warm1.position.set(-30, 8, 20); scene.add(warm1);
+  const warm2 = new THREE.PointLight(0x4dc8ff, 0.5, 50); warm2.position.set(30, 8, -20); scene.add(warm2);
+  const warm3 = new THREE.PointLight(0xff4dc8, 0.4, 50); warm3.position.set(0, 8, 40); scene.add(warm3);
+}
 
 // ==================== HELPERS ====================
 function box(w, h, d, color, opts={}) {
@@ -382,7 +423,7 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 // ==================== ROOM (TRIPLED!) ====================
-const ROOM_W = 65, ROOM_D = 50, WALL_H = 14;
+const ROOM_W = 130, ROOM_D = 100, WALL_H = 14;
 
 floorTex.repeat.set(ROOM_W/2, ROOM_D/2);
 const floor = new THREE.Mesh(
@@ -419,9 +460,9 @@ function makeRug(cx, cz, w, d) {
   rug.receiveShadow = true;
   scene.add(rug);
 }
-makeRug(0, 0, 20, 14); // meeting
-makeRug(-18, 14, 12, 8); // couch lounge
-makeRug(18, -10, 10, 8); // tv
+makeRug(0, 0, 24, 16); // meeting
+makeRug(-38, 28, 14, 10); // couch lounge
+makeRug(38, -20, 12, 10); // tv
 
 // Walls
 brickTex.repeat.set(ROOM_W/2, WALL_H/2);
@@ -477,14 +518,14 @@ for (let x = -ROOM_W/2 + 8; x < ROOM_W/2 - 6; x += 10) {
 
 // String lights — multiple rows
 function stringLight(x1, x2, z, sag) {
-  const count = 24;
+  const count = IS_MOBILE ? 14 : 24;
   for (let i = 1; i < count; i++) {
     const t = i/count;
     const color = [0xff4d4d, 0xffd24d, 0x4dff4d, 0x4dc8ff, 0xff4dc8][i%5];
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color }));
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 6), new THREE.MeshBasicMaterial({ color }));
     bulb.position.set(x1 + (x2-x1)*t, WALL_H - 1.2 - Math.sin(t*Math.PI)*sag, z);
     scene.add(bulb);
-    if (i % 6 === 0) {
+    if (!IS_LOW_END && i % 6 === 0) {
       const glow = new THREE.PointLight(color, 0.6, 10);
       glow.position.copy(bulb.position);
       scene.add(glow);
@@ -492,7 +533,7 @@ function stringLight(x1, x2, z, sag) {
   }
 }
 stringLight(-ROOM_W/2 + 4, ROOM_W/2 - 4, -ROOM_D/2 + 6, 0.5);
-stringLight(-ROOM_W/2 + 4, ROOM_W/2 - 4, 0, 0.6);
+if (!IS_LOW_END) stringLight(-ROOM_W/2 + 4, ROOM_W/2 - 4, 0, 0.6);
 stringLight(-ROOM_W/2 + 4, ROOM_W/2 - 4, ROOM_D/2 - 6, 0.5);
 
 // ==================== CONFERENCE TABLE ====================
@@ -645,8 +686,14 @@ function loadCar(path, x, y, z, desiredSize = 10, rotY = 0, opts = {}) {
 }
 
 // Cars — spread out in the expanded warehouse
-loadCar('./models/911.glb', -18, 0, 18, 10, Math.PI, { name: 'Porsche 911' });
-loadCar('./models/G.glb', -18, 0, -18, 11, Math.PI / 2, { name: 'G-Wagon' });
+loadCar('./models/911.glb', -35, 0, 35, 10, Math.PI, {
+  name: 'Porsche 911',
+  onLoad: (m) => { editableObjects.porsche911 = m; tryApplyPendingLayout(); }
+});
+loadCar('./models/G.glb', -35, 0, -35, 11, Math.PI / 2, {
+  name: 'G-Wagon',
+  onLoad: (m) => { editableObjects.gwagon = m; tryApplyPendingLayout(); }
+});
 
 // To add more models later, call:
 // loadCar('./models/ferrari.glb', 35, 0, 35, 10, 0, { name: 'Ferrari' });
@@ -882,15 +929,19 @@ function couch(x, z, ry) {
   g.position.set(x, 0, z);
   g.rotation.y = ry;
   scene.add(g);
+  return g;
 }
-couch(-18, 14, Math.PI/2);
+const couchObj = couch(-38, 28, Math.PI/2);
 
+const coffeeTableGroup = new THREE.Group();
 const coffeeTbl = box(2, 0.5, 1.2, 0x0a0a0a);
-coffeeTbl.position.set(-14, 0.25, 14);
-scene.add(coffeeTbl);
+coffeeTbl.position.set(0, 0.25, 0);
+coffeeTableGroup.add(coffeeTbl);
 const coffeeTop = box(2.1, 0.05, 1.3, 0x2a1a10);
-coffeeTop.position.set(-14, 0.52, 14);
-scene.add(coffeeTop);
+coffeeTop.position.set(0, 0.52, 0);
+coffeeTableGroup.add(coffeeTop);
+coffeeTableGroup.position.set(-33, 0, 28);
+scene.add(coffeeTableGroup);
 
 // ==================== PLANTS (spread around) ====================
 function plant(x, z) {
@@ -1260,6 +1311,9 @@ function handleServerMsg(msg) {
       break;
     case 'emote':
       showBanner((remotes.get(msg.id)?.name || 'Someone') + ' ' + msg.data.emoji, 'system');
+      break;
+    case 'layout_load':
+      applyLayout(msg.layout);
       break;
     case 'rtc-request-call':
       handleRtcRequest(msg.from);
@@ -2277,7 +2331,176 @@ document.getElementById('begin').onclick = async () => {
   document.getElementById('start').style.display = 'none';
   if (!isMobile()) renderer.domElement.requestPointerLock();
   connectWS(roomCode);
+  refreshAdminUI();
 };
+
+// ==================== ADMIN EDIT SYSTEM ====================
+const editableObjects = {};
+let pendingLayout = null;
+let editMode = false;
+let selectedObj = null;
+
+editableObjects.couch = couchObj;
+editableObjects.coffeeTable = coffeeTableGroup;
+
+function isAdmin() { return player.name === 'Pax'; }
+
+function applyLayout(layout) {
+  if (!layout) return;
+  pendingLayout = layout;
+  for (const id in layout) {
+    const obj = editableObjects[id];
+    if (!obj) continue;
+    const t = layout[id];
+    obj.position.set(t.x, t.y, t.z);
+    obj.rotation.y = t.rotY || 0;
+    if (t.scale) obj.scale.setScalar(t.scale);
+  }
+}
+function tryApplyPendingLayout() {
+  if (pendingLayout) applyLayout(pendingLayout);
+}
+function buildLayoutSnapshot() {
+  const out = {};
+  for (const id in editableObjects) {
+    const o = editableObjects[id]; if (!o) continue;
+    out[id] = {
+      x: +o.position.x.toFixed(3),
+      y: +o.position.y.toFixed(3),
+      z: +o.position.z.toFixed(3),
+      rotY: +o.rotation.y.toFixed(3),
+      scale: +o.scale.x.toFixed(3),
+    };
+  }
+  return out;
+}
+function highlightObj(obj, on) {
+  if (!obj) return;
+  obj.traverse(n => {
+    if (n.isMesh && n.material && n.material.emissive) {
+      if (on) {
+        if (n.userData._origEm == null) n.userData._origEm = n.material.emissive.getHex();
+        n.material.emissive.setHex(0xffd24d);
+      } else if (n.userData._origEm != null) {
+        n.material.emissive.setHex(n.userData._origEm);
+        n.userData._origEm = null;
+      }
+    }
+  });
+}
+function setEditMode(on) {
+  editMode = on;
+  if (!on && selectedObj) { highlightObj(selectedObj, false); selectedObj = null; }
+  showBanner(on ? 'EDIT MODE ON · move/rotate · Enter=save' : 'EDIT MODE OFF', 'system');
+  document.getElementById('edit-panel').style.display = (on && isAdmin()) ? 'flex' : 'none';
+  if (on && document.pointerLockElement) document.exitPointerLock();
+}
+
+const raycaster = new THREE.Raycaster();
+const mouseVec = new THREE.Vector2();
+function pickAt(clientX, clientY) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouseVec.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  mouseVec.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouseVec, camera);
+  let best = null, bestD = Infinity;
+  for (const id in editableObjects) {
+    const o = editableObjects[id]; if (!o) continue;
+    const hits = raycaster.intersectObject(o, true);
+    if (hits.length && hits[0].distance < bestD) { bestD = hits[0].distance; best = { id, obj: o }; }
+  }
+  if (best) {
+    if (selectedObj) highlightObj(selectedObj, false);
+    selectedObj = best.obj;
+    highlightObj(selectedObj, true);
+    showBanner('Selected: ' + best.id, 'system');
+  }
+}
+
+// Tap/click on canvas in edit mode
+let tapStart = null;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (!editMode || !isAdmin() || anyPanelOpen()) return;
+  tapStart = { x: e.clientX, y: e.clientY, t: Date.now() };
+}, true);
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!editMode || !isAdmin() || anyPanelOpen() || !tapStart) return;
+  const dx = e.clientX - tapStart.x, dy = e.clientY - tapStart.y;
+  if (Math.hypot(dx, dy) < 10 && Date.now() - tapStart.t < 400) {
+    pickAt(e.clientX, e.clientY);
+    e.preventDefault(); e.stopPropagation();
+  }
+  tapStart = null;
+}, true);
+
+const STEP = 0.5, ROT = 0.1;
+function moveSelected(dx, dy, dz, drot) {
+  if (!selectedObj) return;
+  selectedObj.position.x += dx;
+  selectedObj.position.y += dy;
+  selectedObj.position.z += dz;
+  selectedObj.rotation.y += drot;
+}
+function saveLayout() {
+  if (!isAdmin()) return;
+  const layout = buildLayoutSnapshot();
+  wsSend({ type: 'layout_save', room: roomId, layout });
+  showBanner('Layout saved ✓', 'system');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (anyPanelOpen()) return;
+  if (e.key.toLowerCase() === 'p' && isAdmin()) {
+    e.preventDefault();
+    setEditMode(!editMode);
+    return;
+  }
+  if (!editMode || !selectedObj) return;
+  let handled = true;
+  switch (e.key) {
+    case 'ArrowUp':    moveSelected(0, 0, -STEP, 0); break;
+    case 'ArrowDown':  moveSelected(0, 0,  STEP, 0); break;
+    case 'ArrowLeft':  moveSelected(-STEP, 0, 0, 0); break;
+    case 'ArrowRight': moveSelected( STEP, 0, 0, 0); break;
+    case 'r': case 'R': moveSelected(0,  STEP, 0, 0); break;
+    case 'f': case 'F': moveSelected(0, -STEP, 0, 0); break;
+    case 'q': case 'Q': moveSelected(0, 0, 0, -ROT); break;
+    case 'e': case 'E': moveSelected(0, 0, 0,  ROT); break;
+    case 'Enter': saveLayout(); break;
+    default: handled = false;
+  }
+  if (handled) e.preventDefault();
+}, true);
+
+// Wire mobile edit panel buttons
+function wireEditBtn(id, fn) {
+  const b = document.getElementById(id);
+  if (!b) return;
+  const handler = (e) => { e.preventDefault(); fn(); };
+  b.addEventListener('touchstart', handler, { passive: false });
+  b.addEventListener('click', handler);
+}
+wireEditBtn('ed-up',    () => moveSelected(0, 0, -STEP, 0));
+wireEditBtn('ed-down',  () => moveSelected(0, 0,  STEP, 0));
+wireEditBtn('ed-left',  () => moveSelected(-STEP, 0, 0, 0));
+wireEditBtn('ed-right', () => moveSelected( STEP, 0, 0, 0));
+wireEditBtn('ed-yup',   () => moveSelected(0,  STEP, 0, 0));
+wireEditBtn('ed-ydown', () => moveSelected(0, -STEP, 0, 0));
+wireEditBtn('ed-rotl',  () => moveSelected(0, 0, 0, -ROT));
+wireEditBtn('ed-rotr',  () => moveSelected(0, 0, 0,  ROT));
+wireEditBtn('ed-save',  saveLayout);
+wireEditBtn('ed-exit',  () => setEditMode(false));
+
+// Mobile edit toggle button
+const btnEdit = document.getElementById('btn-edit');
+if (btnEdit) {
+  const toggleFn = (e) => { e.preventDefault(); if (isAdmin()) setEditMode(!editMode); };
+  btnEdit.addEventListener('touchstart', toggleFn, { passive: false });
+  btnEdit.addEventListener('click', toggleFn);
+}
+function refreshAdminUI() {
+  if (btnEdit) btnEdit.style.display = isAdmin() ? 'block' : 'none';
+}
 
 // ==================== LOOP ====================
 function updateRemotes(dt) {
@@ -2302,8 +2525,13 @@ function updateRemotes(dt) {
   }
 }
 
-function animate() {
+const TARGET_FPS = IS_MOBILE ? 40 : 60;
+const FRAME_MS = 1000 / TARGET_FPS;
+let lastFrame = 0;
+function animate(now) {
   requestAnimationFrame(animate);
+  if (now - lastFrame < FRAME_MS - 1) return;
+  lastFrame = now;
   const dt = Math.min(clock.getDelta(), 0.05);
   const t = clock.elapsedTime;
   updatePlayer(dt, t);
@@ -2311,12 +2539,16 @@ function animate() {
   updateCamera();
   renderer.render(scene, camera);
 }
-animate();
+animate(0);
 
+let resizeTimer;
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }, 150);
 });
 
 // Ping server every 25s to keep socket alive
