@@ -158,11 +158,12 @@ canvas { display: block; }
   pointer-events:none;
 }
 #tv-audio-join {
-  position:absolute; right:14px; bottom:18px;
+  position:absolute; right:14px; top:250px;
   z-index:22; display:none;
   background: rgba(10,12,18,0.92);
   color:#e8b96a; border:1px solid #c89b4a; border-radius:10px;
-  padding:10px 14px; font:12px/1.2 monospace; cursor:pointer;
+  padding:8px 12px; font:11px/1.2 monospace; cursor:pointer;
+  max-width: 150px;
 }
 
 </style>
@@ -803,6 +804,24 @@ function ensureTVDom() {
 function placeTVOverlay() {
   if (!tvCreated || !mediaScreenMesh || !hostState.media.videoId) return;
 
+  const screenCenter = mediaScreenMesh.getWorldPosition(new THREE.Vector3());
+  const camPos = camera.getWorldPosition(new THREE.Vector3());
+  const dist = camPos.distanceTo(screenCenter);
+
+  // Hide if too close so it doesn't blanket the whole view.
+  if (dist < 8.5) {
+    tvOverlay.style.display = 'none';
+    return;
+  }
+
+  // Hide when not generally facing the media wall.
+  const toScreen = screenCenter.clone().sub(camPos).normalize();
+  const camForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
+  if (camForward.dot(toScreen) < 0.35) {
+    tvOverlay.style.display = 'none';
+    return;
+  }
+
   const corners = [
     new THREE.Vector3(-4.8,  2.55, 0),
     new THREE.Vector3( 4.8,  2.55, 0),
@@ -835,6 +854,7 @@ function placeTVOverlay() {
   tvOverlay.style.top = (minY + 2) + 'px';
   tvOverlay.style.width = width + 'px';
   tvOverlay.style.height = height + 'px';
+  tvOverlay.style.opacity = Math.max(0.82, Math.min(1, 14 / dist)).toFixed(2);
   tvOverlay.style.display = 'block';
 }
 function syncTVPlayback() {
@@ -1120,6 +1140,7 @@ function buildCustomRoom() {
       metalness: MOBILE ? 0.28 : 0.42,
       color: 0xffffff
     });
+  floorMaterials.push(floorMat);
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(44, 30),
     floorMat
