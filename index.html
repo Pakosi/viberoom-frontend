@@ -231,7 +231,7 @@ CHARS.forEach((c, i) => {
 // ==================== THREE CORE ====================
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1420);
-scene.fog = new THREE.FogExp2(0x1a1420, 0.018);
+scene.fog = new THREE.FogExp2(0x11141a, 0.0095);
 
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.1, 200);
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -250,9 +250,9 @@ scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).textur
 pmremGenerator.dispose();
 
 // ==================== LIGHTING ====================
-scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+scene.add(new THREE.AmbientLight(0xf7efe2, 0.95));
 
-const sun = new THREE.DirectionalLight(0xfff8f0, 1.0);
+const sun = new THREE.DirectionalLight(0xfff1dc, 1.45);
 sun.position.set(5, 8, 3);
 sun.castShadow = true;
 sun.shadow.mapSize.set(1024, 1024);
@@ -263,7 +263,7 @@ sun.shadow.bias = -0.001;
 scene.add(sun);
 
 // Warm fill from below (bounced light feel)
-const fill = new THREE.HemisphereLight(0xffe8c0, 0x201828, 0.4);
+const fill = new THREE.HemisphereLight(0xffd8b0, 0x111827, 0.65);
 scene.add(fill);
 
 setLoad(15, 'LOADING ROOM...');
@@ -274,21 +274,17 @@ let roomScene = null;
 
 const FLOOR_Y = 0;
 const BOUNDS = { minX: -24, maxX: 24, minZ: -18, maxZ: 18 };
+const PLAYER_RADIUS = 0.48;
 const BLOCKERS = [
-  // Bar block
-  { minX: -22, maxX: -15.2, minZ: -8.2, maxZ: 7.8 },
-  // Back bar shelf / wall
-  { minX: -23.5, maxX: -21.5, minZ: -9.5, maxZ: 9.5 },
-  // Lounge couches and table
-  { minX: 11.8, maxX: 20.5, minZ: 4.2, maxZ: 14.5 },
-  // Meeting table
-  { minX: -4.5, maxX: 6.5, minZ: 2.0, maxZ: 10.8 },
-  // Screen wall platform
-  { minX: 16.8, maxX: 23.5, minZ: -13.5, maxZ: -5.8 },
-  // Arcade pedestals
-  { minX: 13.0, maxX: 21.2, minZ: -1.2, maxZ: 4.8 },
-  // Center sculpture plinth
-  { minX: -2.8, maxX: 2.8, minZ: -2.8, maxZ: 2.8 },
+  { minX: -22.2, maxX: -15.8, minZ: -7.0, maxZ: 7.0 },
+  { minX: -23.6, maxX: -21.8, minZ: -8.5, maxZ: 8.5 },
+  { minX: 14.2, maxX: 18.8, minZ: 8.8, maxZ: 10.9 },
+  { minX: 11.8, maxX: 13.9, minZ: 8.4, maxZ: 12.3 },
+  { minX: -4.3, maxX: 6.2, minZ: 4.4, maxZ: 8.1 },
+  { minX: 18.1, maxX: 22.9, minZ: -12.5, maxZ: -8.7 },
+  { minX: 14.3, maxX: 16.4, minZ: 1.0, maxZ: 3.0 },
+  { minX: 19.2, maxX: 21.1, minZ: 1.1, maxZ: 2.9 },
+  { minX: -2.6, maxX: 2.6, minZ: -2.6, maxZ: 2.6 },
 ];
 
 const INTERACTS = [
@@ -356,6 +352,77 @@ function addPanel(parent, w, h, color, x, y, z, ry = 0, opts = {}) {
   return m;
 }
 
+function makeTiledCanvasTexture(w, h, drawFn, repeatX = 1, repeatY = 1) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  drawFn(ctx, w, h);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeatX, repeatY);
+  tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+const floorTex = makeTiledCanvasTexture(512, 512, (ctx, w, h) => {
+  const g = ctx.createLinearGradient(0, 0, w, h);
+  g.addColorStop(0, '#0c0e12');
+  g.addColorStop(0.5, '#171a20');
+  g.addColorStop(1, '#0a0c10');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 160; i++) {
+    ctx.strokeStyle = `rgba(230,235,245,${0.02 + (i % 7) * 0.003})`;
+    ctx.lineWidth = 1 + (i % 3);
+    ctx.beginPath();
+    const x = (i * 37) % w;
+    const y = (i * 61) % h;
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 40 - (i % 9) * 8, y + 30 - (i % 5) * 6);
+    ctx.stroke();
+  }
+  for (let y = 0; y < h; y += 128) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+  for (let x = 0; x < w; x += 128) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+}, 7, 6);
+
+const wallTex = makeTiledCanvasTexture(256, 256, (ctx, w, h) => {
+  ctx.fillStyle = '#12161d';
+  ctx.fillRect(0,0,w,h);
+  for (let i = 0; i < 1200; i++) {
+    const v = 20 + (i * 13) % 25;
+    ctx.fillStyle = `rgba(${v},${v+3},${v+8},0.08)`;
+    ctx.fillRect((i * 17) % w, (i * 19) % h, 2, 2);
+  }
+  for (let y = 0; y < h; y += 8) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.025)';
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+}, 4, 2);
+
+const whiteboardFrameTex = makeTiledCanvasTexture(256, 256, (ctx, w, h) => {
+  const g = ctx.createLinearGradient(0,0,w,h);
+  g.addColorStop(0, '#302215');
+  g.addColorStop(1, '#8d6a3d');
+  ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+  for (let i = 0; i < 50; i++) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.beginPath();
+    ctx.moveTo((i*13)%w, 0);
+    ctx.lineTo((i*13+40)%w, h);
+    ctx.stroke();
+  }
+}, 2, 1);
+
+
 function buildCustomRoom() {
   roomScene = new THREE.Group();
   roomScene.name = 'customLuxuryRoom';
@@ -363,9 +430,11 @@ function buildCustomRoom() {
   // Floor
   const floorGeo = new THREE.PlaneGeometry(54, 42, 1, 1);
   const floorMat = new THREE.MeshStandardMaterial({
-    color: 0x111214,
-    roughness: 0.22,
-    metalness: 0.08,
+    map: floorTex,
+    color: 0xffffff,
+    roughness: 0.16,
+    metalness: 0.12,
+    envMapIntensity: 1.6,
   });
   const floor = new THREE.Mesh(floorGeo, floorMat);
   floor.rotation.x = -Math.PI / 2;
@@ -392,18 +461,18 @@ function buildCustomRoom() {
   });
 
   // Walls
-  addBox(roomScene, 54, 9, 0.6, 0x111318, 0, 4.5, 18.9, { roughness: 0.88, metalness: 0.06 });
-  addBox(roomScene, 22, 9, 0.6, 0x111318, -16, 4.5, -18.9, { roughness: 0.88, metalness: 0.06 });
-  addBox(roomScene, 16, 9, 0.6, 0x111318, 16, 4.5, -18.9, { roughness: 0.88, metalness: 0.06 });
-  addBox(roomScene, 0.6, 9, 38, 0x111318, -26.7, 4.5, 0, { roughness: 0.88, metalness: 0.06 });
-  addBox(roomScene, 0.6, 9, 38, 0x111318, 26.7, 4.5, 0, { roughness: 0.88, metalness: 0.06 });
+  addBox(roomScene, 54, 9, 0.6, 0xffffff, 0, 4.5, 18.9, { roughness: 0.82, metalness: 0.06 }); roomScene.children.at(-1).material.map = wallTex;
+  addBox(roomScene, 22, 9, 0.6, 0xffffff, -16, 4.5, -18.9, { roughness: 0.82, metalness: 0.06 }); roomScene.children.at(-1).material.map = wallTex;
+  addBox(roomScene, 16, 9, 0.6, 0xffffff, 16, 4.5, -18.9, { roughness: 0.82, metalness: 0.06 }); roomScene.children.at(-1).material.map = wallTex;
+  addBox(roomScene, 0.6, 9, 38, 0xffffff, -26.7, 4.5, 0, { roughness: 0.82, metalness: 0.06 }); roomScene.children.at(-1).material.map = wallTex;
+  addBox(roomScene, 0.6, 9, 38, 0xffffff, 26.7, 4.5, 0, { roughness: 0.82, metalness: 0.06 }); roomScene.children.at(-1).material.map = wallTex;
 
   // Entry portal
   addBox(roomScene, 12, 9, 0.5, 0x0c0f14, 0, 4.5, -18.85, { roughness: 0.92, metalness: 0.05 });
   addBox(roomScene, 6, 6.4, 0.25, 0x25180c, 0, 3.3, -18.55, { emissive: 0x6a3f10, emissiveIntensity: 0.22, roughness: 0.45, metalness: 0.15 });
 
   // Front window wall
-  addBox(roomScene, 54, 1.1, 0.6, 0x111318, 0, 0.55, -18.9, { roughness: 0.85 });
+  addBox(roomScene, 54, 1.1, 0.6, 0x111318, 0, 0.55, -18.9, { roughness: 0.85 }); addBox(roomScene, 44, 0.01, 4.8, 0x6a8cb3, 0, FLOOR_Y + 0.015, -14.8, { transparent: true, opacity: 0.08, roughness: 0.05, metalness: 0.6, emissive: 0x274766, emissiveIntensity: 0.18, castShadow: false });
   addBox(roomScene, 54, 0.8, 0.6, 0x111318, 0, 8.15, -18.9, { roughness: 0.85 });
   [-18, -6, 6, 18].forEach(x => addBox(roomScene, 0.45, 6.8, 0.45, 0x252a32, x, 4.2, -18.8, { roughness: 0.45, metalness: 0.75 }));
   [-12, 0, 12].forEach(x => {
@@ -540,14 +609,33 @@ function buildCustomRoom() {
 
   // Accent point lights
   [
-    { x: -18, y: 4.4, z: 0, c: 0xd79232, i: 1.4, d: 14 },
-    { x: 16, y: 4.2, z: 10, c: 0x6b45d8, i: 1.1, d: 12 },
-    { x: 20, y: 4.0, z: -10, c: 0x4d90c8, i: 1.1, d: 12 },
+    { x: -18, y: 4.8, z: 0, c: 0xd79232, i: 1.8, d: 16 },
+    { x: 16, y: 4.8, z: 10, c: 0x6b45d8, i: 1.4, d: 14 },
+    { x: 20, y: 4.8, z: -10, c: 0x4d90c8, i: 1.45, d: 14 },
+    { x: 0, y: 5.6, z: 0, c: 0xf0c987, i: 1.2, d: 12 },
   ].forEach(l => {
     const p = new THREE.PointLight(l.c, l.i, l.d, 2);
     p.position.set(l.x, l.y, l.z);
     roomScene.add(p);
   });
+
+  const loungeSpot = new THREE.SpotLight(0xf1d2a0, 1.8, 22, Math.PI / 7, 0.45, 1.4);
+  loungeSpot.position.set(16, 8.1, 10.4);
+  loungeSpot.target.position.set(16, 0.8, 10.2);
+  roomScene.add(loungeSpot);
+  roomScene.add(loungeSpot.target);
+
+  const tableSpot = new THREE.SpotLight(0xf3d59f, 1.7, 24, Math.PI / 6, 0.45, 1.5);
+  tableSpot.position.set(1, 8.1, 6.2);
+  tableSpot.target.position.set(1, 1.1, 6.2);
+  roomScene.add(tableSpot);
+  roomScene.add(tableSpot.target);
+
+  const boardSpot = new THREE.SpotLight(0xe8eefb, 1.35, 18, Math.PI / 7, 0.35, 1.6);
+  boardSpot.position.set(20.5, 7.8, -8.8);
+  boardSpot.target.position.set(20.5, 3.2, -10.5);
+  roomScene.add(boardSpot);
+  roomScene.add(boardSpot.target);
 
   scene.add(roomScene);
   roomLoaded = true;
@@ -935,10 +1023,14 @@ function updatePlayer(dt, t) {
   player.vel.y += G * dt;
   const ny = player.group.position.y + player.vel.y * dt;
 
-  const tryX = player.group.position.x + mx*dt;
+  const stepX = mx * dt;
+  const stepZ = mz * dt;
+  const tryX = player.group.position.x + stepX;
+  const tryZ = player.group.position.z + stepZ;
   if (canStand(tryX, player.group.position.z)) player.group.position.x = tryX;
-  const tryZ = player.group.position.z + mz*dt;
+  else if (Math.abs(stepX) > 0.0001 && canStand(player.group.position.x + Math.sign(stepX) * 0.08, player.group.position.z)) player.group.position.x += Math.sign(stepX) * 0.08;
   if (canStand(player.group.position.x, tryZ)) player.group.position.z = tryZ;
+  else if (Math.abs(stepZ) > 0.0001 && canStand(player.group.position.x, player.group.position.z + Math.sign(stepZ) * 0.08)) player.group.position.z += Math.sign(stepZ) * 0.08;
 
   player.group.position.y = Math.max(FLOOR_Y, ny);
   if (player.group.position.y <= FLOOR_Y) { player.vel.y = 0; player.onGround = true; }
@@ -964,20 +1056,24 @@ function updatePlayer(dt, t) {
   maybeBroadcastPos(t);
 }
 
-function pointInRect(x, z, r) {
-  return x > r.minX && x < r.maxX && z > r.minZ && z < r.maxZ;
+function circleHitsRect(x, z, r) {
+  const cx = Math.max(r.minX, Math.min(x, r.maxX));
+  const cz = Math.max(r.minZ, Math.min(z, r.maxZ));
+  const dx = x - cx;
+  const dz = z - cz;
+  return (dx * dx + dz * dz) < (PLAYER_RADIUS * PLAYER_RADIUS);
 }
 
 function canStand(x, z) {
-  if (x <= BOUNDS.minX || x >= BOUNDS.maxX || z <= BOUNDS.minZ || z >= BOUNDS.maxZ) return false;
-  for (const r of BLOCKERS) if (pointInRect(x, z, r)) return false;
+  if (x <= BOUNDS.minX + PLAYER_RADIUS || x >= BOUNDS.maxX - PLAYER_RADIUS || z <= BOUNDS.minZ + PLAYER_RADIUS || z >= BOUNDS.maxZ - PLAYER_RADIUS) return false;
+  for (const r of BLOCKERS) if (circleHitsRect(x, z, r)) return false;
   return true;
 }
 
 function updateCamera() {
   const head = player.group.position.clone();
   head.y += 2.9;
-  const CEIL_Y = 8.2;
+  const CEIL_Y = 7.95;
   if (viewMode === 'first') {
     camera.position.copy(head);
     camera.position.x += Math.sin(player.yaw) * 0.1;
@@ -989,7 +1085,7 @@ function updateCamera() {
       head.z - Math.cos(player.yaw) * Math.cos(player.pitch)
     );
   } else {
-    const dist = 5.4;
+    const dist = 4.8;
     camera.position.set(
       head.x + Math.sin(player.yaw) * dist * Math.cos(player.pitch),
       Math.min(head.y - Math.sin(player.pitch) * dist + 1.5, CEIL_Y),
@@ -1021,11 +1117,50 @@ function paintBoard() {
 paintBoard();
 const wbTex = new THREE.CanvasTexture(wbCanvas);
 wbTex.minFilter = THREE.LinearFilter;
+wbTex.colorSpace = THREE.SRGBColorSpace;
 
 const board = document.getElementById('board-canvas');
 const bctx = board.getContext('2d');
-function paintBoardLocal() { paintBoard(); bctx.drawImage(wbCanvas,0,0,board.width,board.height); wbTex.needsUpdate=true; }
+function paintBoardLocal() { paintBoard(); bctx.drawImage(wbCanvas,0,0,board.width,board.height);
+
+const roomWhiteboard = new THREE.Mesh(
+  new THREE.PlaneGeometry(7.1, 3.55),
+  new THREE.MeshStandardMaterial({ map: wbTex, roughness: 0.9, metalness: 0.02, emissive: 0x16100a, emissiveIntensity: 0.12 })
+);
+roomWhiteboard.position.set(20.5, 3.4, -10.48);
+roomWhiteboard.rotation.y = Math.PI;
+roomWhiteboard.receiveShadow = true;
+scene.add(roomWhiteboard);
+
+const roomWhiteboardFrame = new THREE.Mesh(
+  new THREE.BoxGeometry(7.6, 4.0, 0.12),
+  new THREE.MeshStandardMaterial({ map: whiteboardFrameTex, color: 0xffffff, roughness: 0.45, metalness: 0.35 })
+);
+roomWhiteboardFrame.position.set(20.5, 3.4, -10.62);
+roomWhiteboardFrame.rotation.y = Math.PI;
+roomWhiteboardFrame.castShadow = true;
+roomWhiteboardFrame.receiveShadow = true;
+scene.add(roomWhiteboardFrame); wbTex.needsUpdate=true; }
 bctx.drawImage(wbCanvas,0,0,board.width,board.height);
+
+const roomWhiteboard = new THREE.Mesh(
+  new THREE.PlaneGeometry(7.1, 3.55),
+  new THREE.MeshStandardMaterial({ map: wbTex, roughness: 0.9, metalness: 0.02, emissive: 0x16100a, emissiveIntensity: 0.12 })
+);
+roomWhiteboard.position.set(20.5, 3.4, -10.48);
+roomWhiteboard.rotation.y = Math.PI;
+roomWhiteboard.receiveShadow = true;
+scene.add(roomWhiteboard);
+
+const roomWhiteboardFrame = new THREE.Mesh(
+  new THREE.BoxGeometry(7.6, 4.0, 0.12),
+  new THREE.MeshStandardMaterial({ map: whiteboardFrameTex, color: 0xffffff, roughness: 0.45, metalness: 0.35 })
+);
+roomWhiteboardFrame.position.set(20.5, 3.4, -10.62);
+roomWhiteboardFrame.rotation.y = Math.PI;
+roomWhiteboardFrame.castShadow = true;
+roomWhiteboardFrame.receiveShadow = true;
+scene.add(roomWhiteboardFrame);
 
 let drawing=false, penSize=4, penColor='#e8b96a', lastX=0, lastY=0, eraserMode=false;
 document.getElementById('pen-color').oninput = e => { penColor=e.target.value; eraserMode=false; };
