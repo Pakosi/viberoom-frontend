@@ -730,6 +730,8 @@ let vibeGlowMaterials = [];
 let tvOverlay = null;
 let tvIframe = null;
 let tvAudioJoin = null;
+let floorMat = null;
+let mediaFrameMat = null;
 
 
 function ytIdFrom(input) {
@@ -797,10 +799,10 @@ function placeTVOverlay() {
   if (!tvCreated || !mediaScreenMesh || !hostState.media.videoId) return;
 
   const corners = [
-    new THREE.Vector3(-4.8,  2.55, 0),
-    new THREE.Vector3( 4.8,  2.55, 0),
-    new THREE.Vector3(-4.8, -2.55, 0),
-    new THREE.Vector3( 4.8, -2.55, 0)
+    new THREE.Vector3(-4.8,  2.55, 0.13),
+    new THREE.Vector3( 4.8,  2.55, 0.13),
+    new THREE.Vector3(-4.8, -2.55, 0.13),
+    new THREE.Vector3( 4.8, -2.55, 0.13)
   ];
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -821,14 +823,10 @@ function placeTVOverlay() {
     return;
   }
 
-  const pad = 2;
-  const width = Math.max(180, maxX - minX - pad * 2);
-  const height = Math.max(100, maxY - minY - pad * 2);
-
-  tvOverlay.style.left = (minX + pad) + 'px';
-  tvOverlay.style.top = (minY + pad) + 'px';
-  tvOverlay.style.width = width + 'px';
-  tvOverlay.style.height = height + 'px';
+  tvOverlay.style.left = Math.round(minX) + 'px';
+  tvOverlay.style.top = Math.round(minY) + 'px';
+  tvOverlay.style.width = Math.round(maxX - minX) + 'px';
+  tvOverlay.style.height = Math.round(maxY - minY) + 'px';
   tvOverlay.style.display = 'block';
 }
 function syncTVPlayback() {
@@ -871,22 +869,22 @@ function isHostUser() {
 }
 function applyVibe(mode) {
   activeVibe = mode;
-  let brickA = '#6a4129', brickB = '#472918', mortar = '#26170f';
+  let wallTint = 0xe8d7c5, floorTint = 0xffffff, frameTint = 0x2b313a;
   let bg = 0x0a0d14, fog = MOBILE ? 0.0022 : 0.0035, expo = MOBILE ? 1.75 : 1.95;
   let keyColor = 0xfff4d8, purple = 0x5e47ff, gold = 0xe8b96a, stripA = 0xe8b96a, stripB = 0x6a78ff;
   let sculptureEmissive = 0x4a2400;
 
   if (mode === 'war') {
-    brickA = '#5a5c4a'; brickB = '#35392d'; mortar = '#1c1e17';
+    wallTint = 0xb7bea1; floorTint = 0xe7efe2; frameTint = 0x253128;
     bg = 0x0b1117; fog = MOBILE ? 0.0026 : 0.0040; expo = MOBILE ? 1.62 : 1.8;
     keyColor = 0xe7f4d6; purple = 0x2cb35f; gold = 0xa9ff87; stripA = 0xb7ff80; stripB = 0x4cff9d; sculptureEmissive = 0x123d12;
   } else if (mode === 'after') {
-    brickA = '#6c2d33'; brickB = '#3e1619'; mortar = '#1e0d0f';
-    bg = 0x180910; fog = MOBILE ? 0.0017 : 0.0028; expo = MOBILE ? 1.9 : 2.12;
+    wallTint = 0xd58b96; floorTint = 0xfff0f3; frameTint = 0x3a202d;
+    bg = 0x180910; fog = MOBILE ? 0.0017 : 0.0028; expo = MOBILE ? 1.92 : 2.15;
     keyColor = 0xffe9da; purple = 0xb84cff; gold = 0xff7b5d; stripA = 0xff9966; stripB = 0xa668ff; sculptureEmissive = 0x5a1430;
   } else if (mode === 'game') {
-    brickA = '#6b4620'; brickB = '#45280f'; mortar = '#24160b';
-    bg = 0x0b1118; fog = MOBILE ? 0.0019 : 0.0030; expo = MOBILE ? 1.86 : 2.08;
+    wallTint = 0xf0c070; floorTint = 0xfffbef; frameTint = 0x313520;
+    bg = 0x0b1118; fog = MOBILE ? 0.0019 : 0.0030; expo = MOBILE ? 1.88 : 2.1;
     keyColor = 0xf8f2df; purple = 0x2f78ff; gold = 0xffcc42; stripA = 0xffcf56; stripB = 0x46a2ff; sculptureEmissive = 0x4d2b00;
   }
 
@@ -897,11 +895,12 @@ function applyVibe(mode) {
   purpleFill.color.setHex(purple);
   goldFill.color.setHex(gold);
 
-  wallTex = makeWallTexture(brickA, brickB, mortar);
   for (const m of wallMaterials) {
-    m.map = wallTex;
-    m.needsUpdate = true;
+    if (m.color) m.color.setHex(wallTint);
   }
+  if (floorMat && floorMat.color) floorMat.color.setHex(floorTint);
+  if (mediaFrameMat && mediaFrameMat.color) mediaFrameMat.color.setHex(frameTint);
+
   for (let i = 0; i < vibeStripMaterials.length; i++) {
     vibeStripMaterials[i].color.setHex(i % 2 === 0 ? stripA : stripB);
   }
@@ -946,6 +945,7 @@ function applyRoomState(data) {
       startTVPlayback(false);
     }
     document.getElementById('host-info').textContent = hostState.media.videoId ? 'Wall TV synced.' : 'Wall TV stopped.';
+    drawMediaScreen();
   }
 }
 function spawnMoneyBurst() {
@@ -1072,14 +1072,15 @@ function syncInteractAnchors() {
 }
 
 function buildCustomRoom() {
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(44, 30),
-    new THREE.MeshStandardMaterial({
+  floorMat = new THREE.MeshStandardMaterial({
       map: marbleTex,
       roughness: MOBILE ? 0.24 : 0.16,
       metalness: MOBILE ? 0.28 : 0.42,
       color: 0xffffff
-    })
+    });
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(44, 30),
+    floorMat
   );
   floor.rotation.x = -Math.PI/2;
   floor.receiveShadow = true;
@@ -1293,7 +1294,9 @@ function buildCustomRoom() {
   roomGroup.add(boardGlow);
 
   // media wall
-  const mediaFrame = box(10.5, 5.8, 0.24, 0x2b313a, 0.16, 0.82);
+  mediaFrameMat = new THREE.MeshStandardMaterial({ color: 0x2b313a, roughness: 0.16, metalness: 0.82 });
+  const mediaFrame = new THREE.Mesh(new THREE.BoxGeometry(10.5, 5.8, 0.24), mediaFrameMat);
+  mediaFrame.castShadow = true; mediaFrame.receiveShadow = true;
   mediaFrame.position.set(0.0, 4.4, 14.6);
   roomGroup.add(mediaFrame);
 
@@ -1747,6 +1750,7 @@ function handleServerMsg(msg) {
       myId = msg.id;
       for (const p of msg.players) addRemote(p.id, p.name, p.preset, p.pos);
       wsSend({ type:'layout_load', room: roomId });
+      wsSend({ type:'state_get' });
       break;
     case 'peer-join':
       addRemote(msg.id, msg.name, msg.preset, null);
@@ -1777,6 +1781,12 @@ function handleServerMsg(msg) {
     case 'clear': paintBoardLocal(); break;
     case 'layout_load':
       applyLayout(msg.data || msg.layout || msg.objects);
+      break;
+    case 'room_state':
+      applyRoomState(msg.data || {});
+      break;
+    case 'host_event':
+      applyHostEvent(msg.data || {}, false);
       break;
   }
 }
@@ -1948,9 +1958,11 @@ document.getElementById('host-load-media').addEventListener('click', () => {
     return;
   }
   const media = { videoId, playing:true, startAt:0, startedAt: Date.now() };
-  applyRoomState({ media });
+  hostState.media = media;
+  startTVPlayback(true);
   sendRoomStatePatch({ vibe: hostState.vibe, media });
   document.getElementById('host-info').textContent = 'Wall TV synced.';
+  drawMediaScreen();
 });
 document.getElementById('host-stop-media').addEventListener('click', () => {
   if (!isHostUser()) return;
