@@ -315,13 +315,14 @@ CHARS.forEach((c, i) => {
 });
 
 // ==================== THREE CORE ====================
+const MOBILE = window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 900;
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x07080f);
 scene.fog = new THREE.FogExp2(0x07080f, MOBILE ? 0.007 : 0.0095);
 
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.1, 240);
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-const MOBILE = window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 900;
 renderer.setPixelRatio(MOBILE ? 1 : Math.min(window.devicePixelRatio, 1.75));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
