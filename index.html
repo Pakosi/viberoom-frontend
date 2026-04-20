@@ -122,6 +122,7 @@ canvas { display: block; }
   border-radius:12px; padding:12px; box-shadow:0 12px 34px rgba(0,0,0,0.55); backdrop-filter: blur(10px);
 }
 #host-panel h3 { color:#e8b96a; font:700 13px/1.2 monospace; letter-spacing:2px; text-align:center; margin-bottom:10px; }
+#host-close { position:absolute; top:8px; right:10px; background:none; border:none; color:#e8b96a; font:28px/1 monospace; cursor:pointer; }
 #host-panel .host-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:10px; }
 #host-panel button, #host-panel input {
   background:#161821; color:#e8d8b0; border:1px solid #3a4a66; border-radius:8px; padding:10px;
@@ -279,6 +280,7 @@ canvas { display: block; }
 
   
   <div id="host-panel">
+    <button id="host-close">✕</button>
     <h3>◆ HOST CONSOLE ◆</h3>
     <div class="host-grid">
       <button class="host-accent" data-vibe="chill">CHILL</button>
@@ -298,11 +300,7 @@ canvas { display: block; }
     <div class="host-info" id="host-info">Pax can control room vibe and the media wall from here.</div>
   </div>
 
-  <div id="media-wall-panel">
-    <div id="media-wall-header">
-      <span>MEDIA WALL LIVE</span>
-      <button id="media-wall-close">✕</button>
-    </div>
+  <div id="media-wall-stage">
     <iframe id="media-wall-frame" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
   </div>
 
@@ -678,6 +676,22 @@ let hostConsoleGroup = null;
 let activeVibe = 'chill';
 let eventPulse = 0;
 let moneyRain = [];
+let centerOrb = null;
+let pulseLight = null;
+
+function makeMoneyBillTexture() {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#80d47a'; ctx.fillRect(0,0,128,64);
+  ctx.strokeStyle = '#2f6b33'; ctx.lineWidth = 4; ctx.strokeRect(2,2,124,60);
+  ctx.fillStyle = '#2f6b33'; ctx.font = 'bold 28px Arial'; ctx.textAlign='center';
+  ctx.fillText('$', 64, 40);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const moneyBillTex = makeMoneyBillTexture();
 
 function ytIdFrom(input) {
   const s = String(input || '').trim();
@@ -740,21 +754,53 @@ function isHostUser() {
   return (player.name || '').toLowerCase() === 'pax';
 }
 function openMediaWall() {
-  const frame = document.getElementById('media-wall-frame');
-  const panel = document.getElementById('media-wall-panel');
   if (!hostState.media.videoId) {
     addChat('System', '*Media wall is idle*', '#e8b96a');
     return;
   }
+  const frame = document.getElementById('media-wall-frame');
   const startAt = Math.max(0, Math.floor((Date.now() - hostState.media.t0) / 1000));
-  frame.src = `https://www.youtube.com/embed/${hostState.media.videoId}?autoplay=1&playsinline=1&start=${startAt}&rel=0&modestbranding=1`;
-  panel.style.display = 'block';
-  if (document.pointerLockElement) document.exitPointerLock();
+  frame.src = `https://www.youtube.com/embed/${hostState.media.videoId}?autoplay=1&playsinline=1&controls=0&start=${startAt}&rel=0&modestbranding=1&loop=1&playlist=${hostState.media.videoId}`;
 }
 function closeMediaWall() {
   const frame = document.getElementById('media-wall-frame');
   frame.src = '';
-  document.getElementById('media-wall-panel').style.display = 'none';
+  document.getElementById('media-wall-stage').style.display = 'none';
+}
+function projectPointToScreen(vec) {
+  const p = vec.clone().project(camera);
+  return {
+    x: (p.x * 0.5 + 0.5) * renderer.domElement.clientWidth,
+    y: (-p.y * 0.5 + 0.5) * renderer.domElement.clientHeight,
+    visible: p.z > -1 && p.z < 1
+  };
+}
+function updateMediaWallStage() {
+  const stage = document.getElementById('media-wall-stage');
+  if (!mediaWallMesh || !hostState.media.videoId) {
+    stage.style.display = 'none';
+    return;
+  }
+  const w = 8.8 / 2, h = 4.8 / 2;
+  const pts = [
+    new THREE.Vector3(-w, h, 0.05),
+    new THREE.Vector3(w, h, 0.05),
+    new THREE.Vector3(-w, -h, 0.05),
+    new THREE.Vector3(w, -h, 0.05),
+  ].map(v => mediaWallMesh.localToWorld(v));
+  const proj = pts.map(projectPointToScreen);
+  if (proj.some(p => !p.visible)) { stage.style.display = 'none'; return; }
+  const xs = proj.map(p => p.x), ys = proj.map(p => p.y);
+  const left = Math.max(0, Math.min(...xs));
+  const top = Math.max(0, Math.min(...ys));
+  const width = Math.max(...xs) - left;
+  const height = Math.max(...ys) - top;
+  if (width < 120 || height < 80) { stage.style.display = 'none'; return; }
+  stage.style.display = 'block';
+  stage.style.left = `${left}px`;
+  stage.style.top = `${top}px`;
+  stage.style.width = `${width}px`;
+  stage.style.height = `${height}px`;
 }
 function broadcastHostEvent(evt) {
   if (!wsConnected) return;
@@ -801,7 +847,9 @@ function applyHostEvent(evt, local=false) {
     hostState.media.videoId = evt.videoId || '';
     hostState.media.t0 = evt.t0 || Date.now();
     updateMediaWallTexture();
-    if (local && hostState.media.videoId) addChat('System', '*Media wall loaded*', '#7adf9a');
+    if (hostState.media.videoId) openMediaWall();
+    else closeMediaWall();
+    if (local && hostState.media.videoId) addChat('System', '*Media wall loaded on wall*', '#7adf9a');
   } else if (evt.kind === 'pulse') {
     eventPulse = 1.0;
   } else if (evt.kind === 'money') {
@@ -809,15 +857,25 @@ function applyHostEvent(evt, local=false) {
   }
 }
 function spawnMoneyBurst() {
-  for (let i = 0; i < 28; i++) {
+  for (let i = 0; i < 32; i++) {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.7, 0.35),
+      new THREE.MeshBasicMaterial({ map: moneyBillTex, transparent: true, side: THREE.DoubleSide })
+    );
+    mesh.position.set((Math.random()-0.5)*14, 8 + Math.random()*4, -1 + (Math.random()-0.5)*8);
+    mesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+    scene.add(mesh);
     moneyRain.push({
-      x: (Math.random()-0.5)*14,
-      y: 8 + Math.random()*4,
-      z: -1 + (Math.random()-0.5)*8,
-      vy: -1.8 - Math.random()*2.5,
-      rx: Math.random()*Math.PI,
-      rz: Math.random()*Math.PI
+      mesh,
+      vx:(Math.random()-0.5)*0.8,
+      vy:-1.8 - Math.random()*2.5,
+      vz:(Math.random()-0.5)*0.8,
+      spinX:(Math.random()-0.5)*5,
+      spinY:(Math.random()-0.5)*5,
+      spinZ:(Math.random()-0.5)*5
     });
+  }
+});
   }
 }
 
@@ -1023,13 +1081,17 @@ function buildCustomRoom() {
   centerSculpture.castShadow = true;
   roomGroup.add(centerSculpture);
 
-  const orb = new THREE.Mesh(
+  centerOrb = new THREE.Mesh(
     new THREE.IcosahedronGeometry(1.05, 2),
     new THREE.MeshStandardMaterial({ color: 0xfff0c4, emissive: 0xffc86a, emissiveIntensity: 1.5, roughness: 0.15, metalness: 0.22 })
   );
-  orb.position.set(0, 4.2, -1.8);
-  orb.castShadow = true;
-  roomGroup.add(orb);
+  centerOrb.position.set(0, 4.2, -1.8);
+  centerOrb.castShadow = true;
+  roomGroup.add(centerOrb);
+
+  pulseLight = new THREE.PointLight(0xffd78a, 0.8, 14);
+  pulseLight.position.set(0, 4.2, -1.8);
+  roomGroup.add(pulseLight);
 
   const sculptureBase = roundedBox(3.6, 0.6, 3.6, 0x101316, 0.45, 0.55);
   sculptureBase.position.set(0, 0.3, -1.8);
@@ -1768,8 +1830,8 @@ document.getElementById('host-badge').addEventListener('click', () => {
   const p = document.getElementById('host-panel');
   p.style.display = p.style.display === 'block' ? 'none' : 'block';
 });
-document.getElementById('media-wall-close').addEventListener('click', closeMediaWall);
 document.getElementById('host-open-media').addEventListener('click', openMediaWall);
+document.getElementById('host-close').addEventListener('click', () => { document.getElementById('host-panel').style.display = 'none'; });
 document.getElementById('host-load-media').addEventListener('click', () => {
   if (!isHostUser()) return;
   const raw = document.getElementById('host-media-url').value;
@@ -1816,7 +1878,7 @@ document.getElementById('admin-save').addEventListener('click', saveLayout);
 document.getElementById('admin-exit').addEventListener('click', () => setAdminMode(false));
 
 // ==================== PANELS ====================
-function anyPanelOpen() { return [...document.querySelectorAll('.panel')].some(p => p.style.display === 'block'); }
+function anyPanelOpen() { return [...document.querySelectorAll('.panel')].some(p => p.style.display === 'block') || document.getElementById('host-panel').style.display === 'block'; }
 function closeAllPanels() { document.querySelectorAll('.panel').forEach(p => p.style.display = 'none'); }
 function openPanel(id) {
   closeAllPanels();
@@ -2239,7 +2301,17 @@ function updateRoomFx(t, dt) {
   if (centerSculpture) {
     centerSculpture.rotation.y += dt * 0.8;
     centerSculpture.rotation.x = Math.sin(t * 0.8) * 0.15;
+    const pulseScale = 1 + eventPulse * 0.28;
+    centerSculpture.scale.setScalar(pulseScale);
   }
+  if (centerOrb) {
+    const s = 1 + eventPulse * 0.34;
+    centerOrb.scale.setScalar(s);
+    if (centerOrb.material) centerOrb.material.emissiveIntensity = 1.5 + eventPulse * 2.2;
+  }
+  if (pulseLight) pulseLight.intensity = 0.8 + eventPulse * 8.0;
+  eventPulse = Math.max(0, eventPulse - dt * 1.1);
+
   if (cashStack) cashStack.position.y = Math.sin(t * 1.6) * 0.05;
   if (safeDoor) {
     const target = Math.sin(t * 0.9) * 0.5 + 0.6;
@@ -2248,7 +2320,34 @@ function updateRoomFx(t, dt) {
     safeDoor.position.x = -16.03 + (1 - Math.cos(safeOpen)) * 0.2;
     safeDoor.rotation.y = -safeOpen;
   }
-  if (fifaScreenMesh) if (fifaScreenMesh && fifaScreenMesh.material && fifaScreenMesh.material.emissive) fifaScreenMesh.material.emissive.set(0x000000);
+  for (let i = moneyRain.length - 1; i >= 0; i--) {
+    const b = moneyRain[i];
+    b.mesh.position.x += b.vx * dt;
+    b.mesh.position.y += b.vy * dt;
+    b.mesh.position.z += b.vz * dt;
+    b.mesh.rotation.x += b.spinX * dt;
+    b.mesh.rotation.y += b.spinY * dt;
+    b.mesh.rotation.z += b.spinZ * dt;
+    if (b.mesh.position.y < -0.2) {
+      scene.remove(b.mesh);
+      if (b.mesh.material.map) b.mesh.material.map.dispose?.();
+      b.mesh.material.dispose();
+      b.mesh.geometry.dispose();
+    }
+  }
+  moneyRain = moneyRain.filter(b => {
+    if (b.mesh.position.y < -0.2) {
+      scene.remove(b.mesh);
+      b.mesh.material.dispose();
+      b.mesh.geometry.dispose();
+      return false;
+    }
+    return true;
+  });
+
+  updateMediaWallStage();
+
+  if (fifaScreenMesh && fifaScreenMesh.material && fifaScreenMesh.material.emissive) fifaScreenMesh.material.emissive.set(0x000000);
 }
 
 // ==================== LOOP ====================
