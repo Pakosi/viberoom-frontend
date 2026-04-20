@@ -1040,7 +1040,6 @@ const PLAYER_RADIUS = 0.42;
 
 try {
   buildCustomRoom();
-  syncInteractAnchors();
 } catch (err) {
   showFatal(err && err.stack ? err.stack : err);
 }
@@ -1060,6 +1059,8 @@ const INTERACTS = [
   { type: 'fifa',       x: 14.6,  z: -3.8,  r: 3.6, label: 'PS5 FIFA ⚽', anchorId:'fifa_zone', offsetX:0, offsetZ:2.8 },
   { type: 'money',      x: -16.0, z: 12.0,  r: 3.0, label: 'SAFE & CASH 💰', anchorId:'money_zone', offsetX:1.1, offsetZ:1.0 },
 ];
+
+syncInteractAnchors();
 
 // ==================== CHARACTER BUILDER ====================
 function texCanvas(w, h, drawFn) {
