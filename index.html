@@ -60,19 +60,9 @@ canvas { display: block; }
   display: block; margin: 10px auto 0; background: #1a1510; color: #e8b96a; border: 1px solid #c89b4a;
   padding: 8px 16px; font-family: inherit; cursor: pointer; font-size: 11px; letter-spacing: 2px; border-radius: 3px;
 }
-#fifa-panel, #basketball-panel { width: min(460px, 96vw); text-align:center; }
+#fifa-panel, #basketball-panel { width: min(420px, 94vw); text-align:center; }
 .mini-score { color:#e8b96a; font-size:16px; margin: 12px 0; }
 .mini-sub { color:#a89878; font-size:11px; line-height:1.5; }
-.game-canvas { display:block; width:100%; max-width:400px; height:auto; margin:10px auto; background:#090909; border:1px solid #c89b4a; border-radius:4px; }
-.meter-wrap { width:min(360px, 88vw); height:14px; background:#0f0b07; border:1px solid #c89b4a; margin:8px auto; position:relative; border-radius:8px; overflow:hidden; }
-.meter-green { position:absolute; top:0; bottom:0; background:rgba(122,223,154,0.35); }
-.meter-marker { position:absolute; top:0; bottom:0; width:8px; background:#e8b96a; box-shadow:0 0 10px rgba(232,185,106,0.8); }
-.game-row { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:8px; }
-.game-row button {
-  background:#1a1510; color:#e8b96a; border:1px solid #c89b4a; padding:8px 14px; font-family:inherit; font-size:11px; cursor:pointer; letter-spacing:2px; border-radius:4px;
-}
-.status-good { color:#7adf9a; }
-.status-bad { color:#ff8d8d; }
 
 /* Start screen */
 #start { position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 20%, #3a1e4a 0%, #1a0e28 40%, #050308 100%); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; z-index: 100; padding: 30px 15px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -123,6 +113,42 @@ canvas { display: block; }
 }
 #admin-panel button:active { background:#c89b4a; color:#111; }
 #admin-info { color:#d8c8a8; text-align:center; font:11px/1.35 monospace; min-height:28px; }
+
+/* Host mode */
+#host-badge { display:none; }
+#host-panel {
+  position:absolute; right:14px; top:140px; z-index:25; display:none;
+  width:min(360px,92vw); background:rgba(9,10,16,0.92); border:1px solid #c89b4a;
+  border-radius:12px; padding:12px; box-shadow:0 12px 34px rgba(0,0,0,0.55); backdrop-filter: blur(10px);
+}
+#host-panel h3 { color:#e8b96a; font:700 13px/1.2 monospace; letter-spacing:2px; text-align:center; margin-bottom:10px; }
+#host-panel .host-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:10px; }
+#host-panel button, #host-panel input {
+  background:#161821; color:#e8d8b0; border:1px solid #3a4a66; border-radius:8px; padding:10px;
+  font:12px/1.2 monospace;
+}
+#host-panel button { cursor:pointer; }
+#host-panel button:active { transform:translateY(1px); }
+#host-panel .host-accent { border-color:#c89b4a; color:#e8b96a; }
+#host-media-url { width:100%; margin-bottom:8px; }
+#host-panel .host-row { display:flex; gap:8px; margin-bottom:8px; }
+#host-panel .host-info { color:#b8b2a5; font:11px/1.5 monospace; min-height:32px; margin-top:4px; text-align:center; }
+#media-wall-panel {
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:min(960px,95vw); height:min(72vh,620px);
+  display:none; z-index:40; background:#08090f; border:1px solid #c89b4a; border-radius:12px;
+  box-shadow:0 16px 50px rgba(0,0,0,0.65); overflow:hidden;
+}
+#media-wall-header {
+  height:44px; display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(90deg,#0d1220,#16120e); color:#e8b96a; padding:0 12px;
+  font:700 12px/1 monospace; letter-spacing:2px;
+}
+#media-wall-close {
+  background:none; border:none; color:#e8b96a; font-size:22px; cursor:pointer;
+}
+#media-wall-frame { width:100%; height:calc(100% - 44px); border:none; background:#000; }
+
 </style>
 </head>
 <body>
@@ -159,6 +185,7 @@ canvas { display: block; }
     <div class="badge" id="room-badge">ROOM: —</div>
     <div class="badge offline" id="conn-badge">● DISCONNECTED</div>
     <div class="badge" id="admin-badge">ADMIN OFF</div>
+    <div class="badge" id="host-badge">HOST MODE</div>
   </div>
   <div id="crosshair" style="display:none;"></div>
   <div id="prompt"></div>
@@ -211,41 +238,20 @@ canvas { display: block; }
 
   <div class="panel" id="fifa-panel">
     <button class="close">✕</button>
-    <h2>◆ PS5 FIFA PENALTY NIGHT ◆</h2>
-    <div class="mini-score" id="fifa-score">SCORED: 0 / 0</div>
-    <canvas id="fifa-canvas" class="game-canvas" width="400" height="220"></canvas>
-    <div class="mini-sub" id="fifa-msg">Press START, then lock power and curve. Beat the keeper, because pressing one button was embarrassingly lazy.</div>
-    <div class="meter-wrap" id="fifa-power-wrap">
-      <div class="meter-green" style="left:42%; width:16%;"></div>
-      <div class="meter-marker" id="fifa-power-marker" style="left:0%;"></div>
-    </div>
-    <div class="meter-wrap" id="fifa-curve-wrap">
-      <div class="meter-green" style="left:44%; width:12%;"></div>
-      <div class="meter-marker" id="fifa-curve-marker" style="left:0%;"></div>
-    </div>
-    <div class="game-row">
-      <button id="fifa-start">START</button>
-      <button id="fifa-lock-power">LOCK POWER</button>
-      <button id="fifa-lock-curve">LOCK CURVE</button>
-      <button id="fifa-reset">RESET</button>
-    </div>
+    <h2>◆ PS5 FIFA ◆</h2>
+    <div class="mini-score" id="fifa-score">HOME 0 - 0 AWAY</div>
+    <div class="mini-sub">Smash shoot to run a fake-highlight attack. Ridiculous, yes. Better than a blank wall, also yes.</div>
+    <button id="fifa-shoot">ATTACK</button>
+    <button id="fifa-reset">RESET</button>
   </div>
 
   <div class="panel" id="basketball-panel">
     <button class="close">✕</button>
-    <h2>◆ BASKETBALL SHOOTOUT ◆</h2>
-    <div class="mini-score" id="ball-score">MADE: 0 / 0 · STREAK: 0</div>
-    <canvas id="ball-canvas" class="game-canvas" width="400" height="220"></canvas>
-    <div class="mini-sub" id="ball-msg">Press START, then SHOOT when the marker hits green. Too early or too late and your digital brick joins the collection.</div>
-    <div class="meter-wrap" id="ball-meter-wrap">
-      <div class="meter-green" style="left:46%; width:10%;"></div>
-      <div class="meter-marker" id="ball-meter-marker" style="left:0%;"></div>
-    </div>
-    <div class="game-row">
-      <button id="ball-start">START</button>
-      <button id="ball-shoot">SHOOT</button>
-      <button id="ball-reset">RESET</button>
-    </div>
+    <h2>◆ BASKETBALL ◆</h2>
+    <div class="mini-score" id="ball-score">MADE: 0 / 0</div>
+    <div class="mini-sub">Tap shoot. 60% make chance because apparently realism is optional in luxury nonsense rooms.</div>
+    <button id="ball-shoot">SHOOT</button>
+    <button id="ball-reset">RESET</button>
   </div>
 
   <div id="admin-panel">
@@ -269,6 +275,35 @@ canvas { display: block; }
       <button id="admin-raise">＋Y</button>
       <button id="admin-lower">－Y</button>
     </div>
+  </div>
+
+  
+  <div id="host-panel">
+    <h3>◆ HOST CONSOLE ◆</h3>
+    <div class="host-grid">
+      <button class="host-accent" data-vibe="chill">CHILL</button>
+      <button class="host-accent" data-vibe="war">WAR ROOM</button>
+      <button class="host-accent" data-vibe="after">AFTER HOURS</button>
+      <button class="host-accent" data-vibe="game">GAME NIGHT</button>
+    </div>
+    <input id="host-media-url" placeholder="Paste YouTube URL or video ID">
+    <div class="host-row">
+      <button id="host-load-media" class="host-accent" style="flex:1;">LOAD MEDIA</button>
+      <button id="host-open-media" style="flex:1;">OPEN WALL</button>
+    </div>
+    <div class="host-row">
+      <button id="host-money-rain" style="flex:1;">MONEY RAIN</button>
+      <button id="host-pulse" style="flex:1;">PULSE</button>
+    </div>
+    <div class="host-info" id="host-info">Pax can control room vibe and the media wall from here.</div>
+  </div>
+
+  <div id="media-wall-panel">
+    <div id="media-wall-header">
+      <span>MEDIA WALL LIVE</span>
+      <button id="media-wall-close">✕</button>
+    </div>
+    <iframe id="media-wall-frame" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
   </div>
 
   <div id="mobile-ctrls">
@@ -496,39 +531,19 @@ function makeMarbleTexture() {
 }
 function makeWallTexture() {
   const t = canvasTex(1024, 512, (ctx, w, h) => {
-    ctx.fillStyle = '#5c3b2a';
+    const g = ctx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0,'#161923');
+    g.addColorStop(1,'#0a0d14');
+    ctx.fillStyle = g;
     ctx.fillRect(0,0,w,h);
-
-    const brickH = 44;
-    const brickW = 110;
-    for (let y = 0; y < h; y += brickH) {
-      const offset = ((y / brickH) % 2) * (brickW / 2);
-      for (let x = -brickW; x < w + brickW; x += brickW) {
-        const bx = x + offset;
-                ctx.fillStyle = `rgb(${98 + ((x+y) % 18)}, ${58 + ((x*y) % 14)}, ${40 + ((x+y) % 10)})`;
-        ctx.fillRect(bx + 2, y + 2, brickW - 4, brickH - 4);
-
-        const g = ctx.createLinearGradient(bx, y, bx + brickW, y + brickH);
-        g.addColorStop(0, 'rgba(255,220,180,0.10)');
-        g.addColorStop(1, 'rgba(0,0,0,0.12)');
-        ctx.fillStyle = g;
-        ctx.fillRect(bx + 2, y + 2, brickW - 4, brickH - 4);
-      }
+    for (let i = 0; i < 14; i++) {
+      ctx.fillStyle = i%2 ? 'rgba(255,255,255,0.018)' : 'rgba(255,255,255,0.035)';
+      ctx.fillRect(i*w/14, 0, 10, h);
     }
-
-    ctx.fillStyle = 'rgba(24,12,8,0.45)';
-    for (let y = 0; y < h; y += brickH) ctx.fillRect(0, y, w, 2);
-    for (let y = 0; y < h; y += brickH) {
-      const offset = ((y / brickH) % 2) * (brickW / 2);
-      for (let x = -brickW; x < w + brickW; x += brickW) {
-        ctx.fillRect(x + offset, y, 2, brickH);
-      }
-    }
-
-    ctx.fillStyle = 'rgba(232,185,106,0.08)';
-    ctx.fillRect(0, h - 18, w, 10);
+    ctx.fillStyle = 'rgba(232,185,106,0.05)';
+    ctx.fillRect(0, h-20, w, 12);
   });
-  t.repeat.set(3, 1.4);
+  t.repeat.set(4, 1);
   return t;
 }
 function makeSnakeScreenTexture() {
@@ -647,6 +662,164 @@ let cashStack = null;
 let centerSculpture = null;
 let tableTopDisplay = null;
 let tableInteractAnchor = new THREE.Vector3(0,0,0);
+
+
+const HOST_PREFIX = '__HOST__';
+const hostState = {
+  vibe: 'chill',
+  media: { videoId: '', title: 'MEDIA WALL', t0: 0 },
+  event: null
+};
+let mediaWallMesh = null;
+let mediaWallTex = null;
+let mediaWallCanvas = null;
+let mediaWallCtx = null;
+let hostConsoleGroup = null;
+let activeVibe = 'chill';
+let eventPulse = 0;
+let moneyRain = [];
+
+function ytIdFrom(input) {
+  const s = String(input || '').trim();
+  if (!s) return '';
+  if (/^[a-zA-Z0-9_-]{11}$/.test(s)) return s;
+  const m = s.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : '';
+}
+function buildMediaWallTexture() {
+  mediaWallCanvas = document.createElement('canvas');
+  mediaWallCanvas.width = 1280;
+  mediaWallCanvas.height = 720;
+  mediaWallCtx = mediaWallCanvas.getContext('2d');
+  mediaWallTex = new THREE.CanvasTexture(mediaWallCanvas);
+  mediaWallTex.colorSpace = THREE.SRGBColorSpace;
+  updateMediaWallTexture();
+}
+function updateMediaWallTexture() {
+  if (!mediaWallCtx) return;
+  const ctx = mediaWallCtx, w = mediaWallCanvas.width, h = mediaWallCanvas.height;
+  const g = ctx.createLinearGradient(0,0,w,h);
+  g.addColorStop(0, '#0c1324');
+  g.addColorStop(1, '#1a120f');
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,w,h);
+  for (let i = 0; i < 18; i++) {
+    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.015)';
+    ctx.fillRect(i*w/18, 0, 8, h);
+  }
+  ctx.strokeStyle = '#e8b96a';
+  ctx.lineWidth = 10;
+  ctx.strokeRect(18,18,w-36,h-36);
+  ctx.fillStyle = '#e8b96a';
+  ctx.font = 'bold 90px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('MEDIA WALL', w/2, 120);
+  ctx.fillStyle = '#f2e4c8';
+  ctx.font = 'bold 54px Arial';
+  ctx.fillText(hostState.media.videoId ? 'NOW PLAYING' : 'READY FOR HOST', w/2, 220);
+  ctx.fillStyle = '#7adf9a';
+  ctx.font = '36px Arial';
+  ctx.fillText(hostState.media.videoId ? hostState.media.videoId : 'PRESS E TO WATCH', w/2, 300);
+  if (hostState.media.videoId) {
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(210, 380, 860, 200);
+    ctx.fillStyle = '#d8c8a8';
+    ctx.font = '32px Arial';
+    ctx.fillText('SYNCED YOUTUBE WALL', w/2, 470);
+    ctx.fillText('TAP TO JOIN AUDIO', w/2, 525);
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(260, 390, 760, 160);
+    ctx.fillStyle = '#d8c8a8';
+    ctx.font = '28px Arial';
+    ctx.fillText('Host can set a video from the console.', w/2, 470);
+  }
+  if (mediaWallTex) mediaWallTex.needsUpdate = true;
+}
+function isHostUser() {
+  return (player.name || '').toLowerCase() === 'pax';
+}
+function openMediaWall() {
+  const frame = document.getElementById('media-wall-frame');
+  const panel = document.getElementById('media-wall-panel');
+  if (!hostState.media.videoId) {
+    addChat('System', '*Media wall is idle*', '#e8b96a');
+    return;
+  }
+  const startAt = Math.max(0, Math.floor((Date.now() - hostState.media.t0) / 1000));
+  frame.src = `https://www.youtube.com/embed/${hostState.media.videoId}?autoplay=1&playsinline=1&start=${startAt}&rel=0&modestbranding=1`;
+  panel.style.display = 'block';
+  if (document.pointerLockElement) document.exitPointerLock();
+}
+function closeMediaWall() {
+  const frame = document.getElementById('media-wall-frame');
+  frame.src = '';
+  document.getElementById('media-wall-panel').style.display = 'none';
+}
+function broadcastHostEvent(evt) {
+  if (!wsConnected) return;
+  wsSend({ type:'chat', data:{ name:'host', text: HOST_PREFIX + JSON.stringify(evt) } });
+}
+function applyVibe(mode) {
+  activeVibe = mode;
+  if (mode === 'war') {
+    renderer.toneMappingExposure = MOBILE ? 1.55 : 1.75;
+    scene.fog.density = MOBILE ? 0.0028 : 0.0042;
+    scene.background.setHex(0x0b1117);
+    key.color.setHex(0xf3f0dc);
+    purpleFill.color.setHex(0x3f66ff);
+    goldFill.color.setHex(0xe8b96a);
+  } else if (mode === 'after') {
+    renderer.toneMappingExposure = MOBILE ? 1.8 : 2.05;
+    scene.fog.density = MOBILE ? 0.0018 : 0.003;
+    scene.background.setHex(0x140a16);
+    key.color.setHex(0xfff0da);
+    purpleFill.color.setHex(0x9a48ff);
+    goldFill.color.setHex(0xff9d66);
+  } else if (mode === 'game') {
+    renderer.toneMappingExposure = MOBILE ? 1.82 : 2.1;
+    scene.fog.density = MOBILE ? 0.0019 : 0.0032;
+    scene.background.setHex(0x09101b);
+    key.color.setHex(0xf7f1df);
+    purpleFill.color.setHex(0x4c77ff);
+    goldFill.color.setHex(0xffcc64);
+  } else {
+    renderer.toneMappingExposure = MOBILE ? 1.75 : 1.95;
+    scene.fog.density = MOBILE ? 0.0022 : 0.0035;
+    scene.background.setHex(0x0a0d14);
+    key.color.setHex(0xfff4d8);
+    purpleFill.color.setHex(0x5e47ff);
+    goldFill.color.setHex(0xe8b96a);
+  }
+}
+function applyHostEvent(evt, local=false) {
+  if (!evt || !evt.kind) return;
+  if (evt.kind === 'vibe') {
+    hostState.vibe = evt.mode;
+    applyVibe(evt.mode);
+  } else if (evt.kind === 'media') {
+    hostState.media.videoId = evt.videoId || '';
+    hostState.media.t0 = evt.t0 || Date.now();
+    updateMediaWallTexture();
+    if (local && hostState.media.videoId) addChat('System', '*Media wall loaded*', '#7adf9a');
+  } else if (evt.kind === 'pulse') {
+    eventPulse = 1.0;
+  } else if (evt.kind === 'money') {
+    spawnMoneyBurst();
+  }
+}
+function spawnMoneyBurst() {
+  for (let i = 0; i < 28; i++) {
+    moneyRain.push({
+      x: (Math.random()-0.5)*14,
+      y: 8 + Math.random()*4,
+      z: -1 + (Math.random()-0.5)*8,
+      vy: -1.8 - Math.random()*2.5,
+      rx: Math.random()*Math.PI,
+      rz: Math.random()*Math.PI
+    });
+  }
+}
 
 const adminObjects = {};
 const adminOrder = [];
@@ -786,7 +959,7 @@ function buildCustomRoom() {
 
   const leftWall = new THREE.Mesh(
     new THREE.BoxGeometry(0.45, 10, 30),
-    new THREE.MeshStandardMaterial({ map: wallTex, color: 0xffffff, roughness: 0.76, metalness: 0.04 })
+    new THREE.MeshStandardMaterial({ map: wallTex, color: 0xe8e8e8, roughness: 0.9, metalness: 0.05 })
   );
   leftWall.position.set(-22, 5, 0);
   roomGroup.add(leftWall);
@@ -797,7 +970,7 @@ function buildCustomRoom() {
 
   const backWall = new THREE.Mesh(
     new THREE.BoxGeometry(44, 10, 0.45),
-    new THREE.MeshStandardMaterial({ map: wallTex, color: 0xffffff, roughness: 0.76, metalness: 0.04 })
+    new THREE.MeshStandardMaterial({ map: wallTex, color: 0xf2f2f2, roughness: 0.9, metalness: 0.05 })
   );
   backWall.position.set(0, 5, 15);
   roomGroup.add(backWall);
@@ -959,6 +1132,34 @@ function buildCustomRoom() {
   const boardGlow = box(9.4, 0.05, 0.28, 0xe8b96a, 0.05, 0.8);
   boardGlow.position.set(12.5, 1.32, -13.55);
   roomGroup.add(boardGlow);
+
+  // media wall
+  buildMediaWallTexture();
+  const mediaFrame = box(10.5, 5.8, 0.24, 0x2b313a, 0.16, 0.82);
+  mediaFrame.position.set(0.0, 4.4, 14.6);
+  roomGroup.add(mediaFrame);
+  mediaWallMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(9.6, 5.1),
+    new THREE.MeshBasicMaterial({ map: mediaWallTex })
+  );
+  mediaWallMesh.position.set(0.0, 4.4, 14.46);
+  mediaWallMesh.rotation.y = Math.PI;
+  roomGroup.add(mediaWallMesh);
+
+  const hostConsole = new THREE.Group();
+  hostConsole.position.set(-3.0, 0, -10.2);
+  roomGroup.add(hostConsole);
+  hostConsoleGroup = hostConsole;
+  const consolePedestal = roundedBox(2.2, 1.15, 1.4, 0x2b313a, 0.2, 0.78);
+  consolePedestal.position.set(0, 0.7, 0);
+  hostConsole.add(consolePedestal);
+  const consoleScreen = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.8, 1.0),
+    new THREE.MeshBasicMaterial({ map: makeLabelTexture('HOST', 'ROOM CONTROL', '#e8b96a', '#08111b') })
+  );
+  consoleScreen.position.set(0, 1.85, 0.72);
+  hostConsole.add(consoleScreen);
+  registerAdminObject('host_console', hostConsole);
 
   // gaming zone
   const fifaGroup = new THREE.Group();
@@ -1157,6 +1358,19 @@ const PLAYER_RADIUS = 0.42;
 
 try {
   buildCustomRoom();
+  
+const moneyBillPool = [];
+function ensureMoneyPool() {
+  if (moneyBillPool.length) return;
+  for (let i = 0; i < 32; i++) {
+    const bill = box(0.55, 0.03, 0.3, 0x62b56b, 0.55, 0.04);
+    bill.visible = false;
+    roomGroup.add(bill);
+    moneyBillPool.push(bill);
+  }
+}
+ensureMoneyPool();
+
   roomGroup.traverse((obj) => {
     if (!obj.material) return;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
@@ -1207,6 +1421,8 @@ const INTERACTS = [
   { type: 'basketball', x: 16.0,  z: 10.6,  r: 3.8, label: 'BASKETBALL 🏀', anchorId:'basketball_zone', offsetX:-2.4, offsetZ:0 },
   { type: 'fifa',       x: 14.6,  z: -3.8,  r: 3.6, label: 'PS5 FIFA ⚽', anchorId:'fifa_zone', offsetX:0, offsetZ:2.8 },
   { type: 'money',      x: -16.0, z: 12.0,  r: 3.0, label: 'SAFE & CASH 💰', anchorId:'money_zone', offsetX:1.1, offsetZ:1.0 },
+  { type: 'hostconsole', x: -3.0, z: -10.2, r: 2.6, label: 'HOST CONSOLE 🎛️', anchorId:'host_console' },
+  { type: 'mediawall', x: 0.0, z: 12.0, r: 4.2, label: 'MEDIA WALL 📺' },
 ];
 
 syncInteractAnchors();
@@ -1390,7 +1606,13 @@ function handleServerMsg(msg) {
       r.lastMoving = msg.data.m;
       break;
     }
-    case 'chat': addChat(msg.data.name||'friend', msg.data.text, '#e8b96a'); break;
+    case 'chat':
+      if (msg.data && typeof msg.data.text === 'string' && msg.data.text.startsWith(HOST_PREFIX)) {
+        try { applyHostEvent(JSON.parse(msg.data.text.slice(HOST_PREFIX.length))); } catch {}
+      } else {
+        addChat(msg.data.name||'friend', msg.data.text, '#e8b96a');
+      }
+      break;
     case 'draw': applyRemoteDraw(msg.data); break;
     case 'clear': paintBoardLocal(); break;
     case 'layout_load':
@@ -1541,6 +1763,45 @@ document.getElementById('admin-badge').addEventListener('click', () => {
   if ((player.name || '').toLowerCase() !== 'pax') return;
   setAdminMode(!adminMode);
 });
+document.getElementById('host-badge').addEventListener('click', () => {
+  if (!isHostUser()) return;
+  const p = document.getElementById('host-panel');
+  p.style.display = p.style.display === 'block' ? 'none' : 'block';
+});
+document.getElementById('media-wall-close').addEventListener('click', closeMediaWall);
+document.getElementById('host-open-media').addEventListener('click', openMediaWall);
+document.getElementById('host-load-media').addEventListener('click', () => {
+  if (!isHostUser()) return;
+  const raw = document.getElementById('host-media-url').value;
+  const id = ytIdFrom(raw);
+  if (!id) {
+    document.getElementById('host-info').textContent = 'Bad YouTube URL / ID';
+    return;
+  }
+  const evt = { kind:'media', videoId:id, t0: Date.now() };
+  applyHostEvent(evt, true);
+  broadcastHostEvent(evt);
+  document.getElementById('host-info').textContent = 'Media wall synced.';
+});
+document.querySelectorAll('#host-panel [data-vibe]').forEach(btn => btn.addEventListener('click', () => {
+  if (!isHostUser()) return;
+  const evt = { kind:'vibe', mode: btn.dataset.vibe };
+  applyHostEvent(evt, true);
+  broadcastHostEvent(evt);
+  document.getElementById('host-info').textContent = 'Vibe set to ' + btn.dataset.vibe.toUpperCase();
+}));
+document.getElementById('host-money-rain').addEventListener('click', () => {
+  if (!isHostUser()) return;
+  const evt = { kind:'money' };
+  applyHostEvent(evt, true);
+  broadcastHostEvent(evt);
+});
+document.getElementById('host-pulse').addEventListener('click', () => {
+  if (!isHostUser()) return;
+  const evt = { kind:'pulse' };
+  applyHostEvent(evt, true);
+  broadcastHostEvent(evt);
+});
 document.getElementById('admin-prev').addEventListener('click', () => selectAdmin(-1));
 document.getElementById('admin-next').addEventListener('click', () => selectAdmin(1));
 document.getElementById('admin-left').addEventListener('click', () => nudgeAdmin(-0.4,0,0,0));
@@ -1587,6 +1848,16 @@ function tryInteract() {
   else if (i.type === 'basketball') openPanel('basketball-panel');
   else if (i.type === 'fifa') openPanel('fifa-panel');
   else if (i.type === 'money') addChat('System', '*' + player.name + ' admires the cash pile like a true menace 💰*', '#7adf9a');
+  else if (i.type === 'hostconsole') {
+    if (isHostUser()) {
+      const p = document.getElementById('host-panel');
+      p.style.display = p.style.display === 'block' ? 'none' : 'block';
+      if (document.pointerLockElement) document.exitPointerLock();
+    } else {
+      addChat('System', '*Only Pax can use the host console*', '#e88080');
+    }
+  }
+  else if (i.type === 'mediawall') openMediaWall();
 }
 
 // ==================== MOVEMENT ====================
@@ -1799,225 +2070,32 @@ function checkTTT(p){const w=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0
 document.getElementById('ttt-reset').onclick=resetTTT;
 
 // ==================== FIFA PANEL ====================
-let fifaShots = 0, fifaGoals = 0;
-let fifaPowerPos = 0, fifaPowerDir = 1, fifaCurvePos = 0, fifaCurveDir = 1;
-let fifaStage = 'idle';
-let fifaPowerValue = 0.5, fifaCurveValue = 0.5;
-let fifaAnim = null;
-const fifaCanvas = document.getElementById('fifa-canvas');
-const fifaCtx = fifaCanvas.getContext('2d');
-const fifaPowerMarker = document.getElementById('fifa-power-marker');
-const fifaCurveMarker = document.getElementById('fifa-curve-marker');
-const fifaMsg = document.getElementById('fifa-msg');
-
+let fifaHome = 0, fifaAway = 0;
 function updateFifaScore() {
-  document.getElementById('fifa-score').textContent = `SCORED: ${fifaGoals} / ${fifaShots}`;
+  document.getElementById('fifa-score').textContent = `HOME ${fifaHome} - ${fifaAway} AWAY`;
+  if (fifaScreenTex && fifaScreenTex.dispose) fifaScreenTex.dispose();
 }
-function drawFifaScene(ball=null, keeperX=0.5, shotTarget=null) {
-  const ctx = fifaCtx, w = fifaCanvas.width, h = fifaCanvas.height;
-  ctx.fillStyle = '#173f1f'; ctx.fillRect(0,0,w,h);
-  ctx.fillStyle = '#21592c'; ctx.fillRect(0,h*0.35,w,h*0.65);
-  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
-  ctx.strokeRect(90,22,220,90);
-  ctx.beginPath(); ctx.moveTo(200,112); ctx.lineTo(200,200); ctx.stroke();
-  // net grid
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  for (let x=110;x<=290;x+=20){ctx.beginPath();ctx.moveTo(x,22);ctx.lineTo(x,112);ctx.stroke();}
-  for (let y=40;y<=100;y+=15){ctx.beginPath();ctx.moveTo(90,y);ctx.lineTo(310,y);ctx.stroke();}
-
-  // keeper
-  const gx = 90 + keeperX * 220;
-  ctx.fillStyle = '#f0f0f0';
-  ctx.fillRect(gx-12, 55, 24, 38);
-  ctx.fillStyle = '#4d90c8';
-  ctx.fillRect(gx-18, 92, 36, 16);
-
-  // target marker
-  if (shotTarget) {
-    ctx.strokeStyle = 'rgba(232,185,106,0.8)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(shotTarget.x-10, shotTarget.y-10, 20, 20);
-  }
-
-  // ball
-  let bx = 200, by = 186;
-  if (ball) { bx = ball.x; by = ball.y; }
-  ctx.fillStyle = '#fff6d8';
-  ctx.beginPath(); ctx.arc(bx, by, 8, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5; ctx.stroke();
-}
-function setFifaMarkers() {
-  fifaPowerMarker.style.left = `${fifaPowerPos * 100}%`;
-  fifaCurveMarker.style.left = `${fifaCurvePos * 100}%`;
-}
-function fifaTickMeters() {
-  if (document.getElementById('fifa-panel').style.display !== 'block') return;
-  if (fifaStage === 'power') {
-    fifaPowerPos += fifaPowerDir * 0.018;
-    if (fifaPowerPos >= 0.96 || fifaPowerPos <= 0.0) fifaPowerDir *= -1;
-  } else if (fifaStage === 'curve') {
-    fifaCurvePos += fifaCurveDir * 0.02;
-    if (fifaCurvePos >= 0.96 || fifaCurvePos <= 0.0) fifaCurveDir *= -1;
-  }
-  setFifaMarkers();
-}
-setInterval(fifaTickMeters, 16);
-
-function startFifaRound() {
-  fifaStage = 'power';
-  fifaPowerPos = 0.08; fifaCurvePos = 0.12;
-  fifaPowerDir = 1; fifaCurveDir = 1;
-  fifaMsg.textContent = 'Lock power first, then lock curve.';
-  drawFifaScene();
-  setFifaMarkers();
-}
-function animateFifaShot() {
-  fifaShots++;
-  const targetX = 110 + fifaCurveValue * 180;
-  const targetY = 38 + (1 - fifaPowerValue) * 52;
-  const keeperTarget = Math.random();
-  const saveBias = Math.abs(keeperTarget - fifaCurveValue);
-  const isGoal = !(saveBias < 0.12 && fifaPowerValue > 0.3 && fifaPowerValue < 0.88);
-
-  let t = 0;
-  fifaStage = 'anim';
-  fifaMsg.innerHTML = isGoal ? '<span class="status-good">GOAL</span>' : '<span class="status-bad">SAVED / MISSED</span>';
-  function step() {
-    t += 0.035;
-    const bx = 200 + (targetX - 200) * t;
-    const by = 186 + (targetY - 186) * t - Math.sin(t * Math.PI) * 34 * fifaPowerValue;
-    drawFifaScene({x:bx, y:by}, keeperTarget, {x:targetX, y:targetY});
-    if (t < 1) {
-      requestAnimationFrame(step);
-    } else {
-      if (isGoal) fifaGoals++;
-      updateFifaScore();
-      fifaStage = 'idle';
-    }
-  }
-  step();
-}
-document.getElementById('fifa-start').onclick = startFifaRound;
-document.getElementById('fifa-lock-power').onclick = () => {
-  if (fifaStage !== 'power') return;
-  fifaPowerValue = fifaPowerPos;
-  fifaStage = 'curve';
-  fifaMsg.textContent = 'Now lock curve.';
-};
-document.getElementById('fifa-lock-curve').onclick = () => {
-  if (fifaStage !== 'curve') return;
-  fifaCurveValue = fifaCurvePos;
-  animateFifaShot();
+document.getElementById('fifa-shoot').onclick = () => {
+  if (Math.random() < 0.55) fifaHome++; else fifaAway++;
+  updateFifaScore();
 };
 document.getElementById('fifa-reset').onclick = () => {
-  fifaShots = 0; fifaGoals = 0; fifaStage = 'idle';
-  fifaPowerValue = 0.5; fifaCurveValue = 0.5;
-  updateFifaScore();
-  fifaMsg.textContent = 'Press START, then lock power and curve. Beat the keeper, because pressing one button was embarrassingly lazy.';
-  drawFifaScene();
-  setFifaMarkers();
+  fifaHome = 0; fifaAway = 0; updateFifaScore();
 };
-drawFifaScene();
-setFifaMarkers();
-updateFifaScore();
 
 // ==================== BASKETBALL PANEL ====================
-let ballMade = 0, ballTaken = 0, ballStreak = 0;
-let ballMeterPos = 0.08, ballMeterDir = 1, ballStage = 'idle';
-const ballCanvas = document.getElementById('ball-canvas');
-const ballCtx = ballCanvas.getContext('2d');
-const ballMarker = document.getElementById('ball-meter-marker');
-const ballMsg = document.getElementById('ball-msg');
-
+let ballMade = 0, ballTaken = 0;
 function updateBallScore() {
-  document.getElementById('ball-score').textContent = `MADE: ${ballMade} / ${ballTaken} · STREAK: ${ballStreak}`;
+  document.getElementById('ball-score').textContent = `MADE: ${ballMade} / ${ballTaken}`;
 }
-function drawBasketScene(ball=null, resultText='') {
-  const ctx = ballCtx, w = ballCanvas.width, h = ballCanvas.height;
-  ctx.fillStyle = '#101317'; ctx.fillRect(0,0,w,h);
-  ctx.fillStyle = '#1d232b'; ctx.fillRect(0,h*0.62,w,h*0.38);
-  ctx.strokeStyle = '#d9a15c'; ctx.lineWidth = 3;
-  ctx.strokeRect(300,28,56,38);
-  ctx.fillStyle = '#f0f0f0'; ctx.fillRect(296,26,64,42);
-  ctx.strokeStyle = '#ff6a2f'; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.arc(328,78,16,0,Math.PI*2); ctx.stroke();
-  ctx.fillStyle = '#3a434f'; ctx.fillRect(324,66,8,80);
-
-  // guide arc
-  ctx.strokeStyle = 'rgba(232,185,106,0.16)';
-  ctx.beginPath(); ctx.moveTo(60,170); ctx.quadraticCurveTo(180,20,328,78); ctx.stroke();
-
-  let bx=60, by=170;
-  if (ball) { bx=ball.x; by=ball.y; }
-  ctx.fillStyle = '#db7b2a';
-  ctx.beginPath(); ctx.arc(bx, by, 11, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = '#5a2b00'; ctx.lineWidth = 2; ctx.stroke();
-
-  if (resultText) {
-    ctx.fillStyle = '#f2e4c8';
-    ctx.font = 'bold 28px Arial';
-    ctx.fillText(resultText, 24, 36);
-  }
-}
-function setBallMarker() {
-  ballMarker.style.left = `${ballMeterPos * 100}%`;
-}
-function ballTickMeter() {
-  if (document.getElementById('basketball-panel').style.display !== 'block') return;
-  if (ballStage !== 'ready') return;
-  ballMeterPos += ballMeterDir * 0.02;
-  if (ballMeterPos >= 0.96 || ballMeterPos <= 0.0) ballMeterDir *= -1;
-  setBallMarker();
-}
-setInterval(ballTickMeter, 16);
-
-function startBallRound() {
-  ballStage = 'ready';
-  ballMeterPos = 0.08; ballMeterDir = 1;
-  ballMsg.textContent = 'Shoot when the marker hits green.';
-  drawBasketScene();
-  setBallMarker();
-}
-function animateBallShot(quality) {
-  ballTaken++;
-  const made = quality > 0.84 || (quality > 0.7 && Math.random() < 0.72);
-  if (made) { ballMade++; ballStreak++; } else { ballStreak = 0; }
-  ballStage = 'anim';
-  let t = 0;
-  function step() {
-    t += 0.032;
-    const bx = 60 + (328 - 60) * t;
-    const arcHeight = made ? 118 : (quality > 0.5 ? 90 : 62);
-    const by = 170 + (78 - 170) * t - Math.sin(t * Math.PI) * arcHeight;
-    drawBasketScene({x:bx, y:by}, made ? 'SWISH' : 'BRICK');
-    if (t < 1) requestAnimationFrame(step);
-    else {
-      updateBallScore();
-      ballMsg.innerHTML = made
-        ? '<span class="status-good">Bucket. Again.</span>'
-        : '<span class="status-bad">Brick. Tragic.</span>';
-      ballStage = 'idle';
-    }
-  }
-  step();
-}
-document.getElementById('ball-start').onclick = startBallRound;
 document.getElementById('ball-shoot').onclick = () => {
-  if (ballStage !== 'ready') return;
-  const dist = Math.abs(ballMeterPos - 0.5);
-  const quality = Math.max(0, 1 - dist * 3.2);
-  animateBallShot(quality);
+  ballTaken++;
+  if (Math.random() < 0.6) ballMade++;
+  updateBallScore();
 };
 document.getElementById('ball-reset').onclick = () => {
-  ballMade = 0; ballTaken = 0; ballStreak = 0; ballStage = 'idle';
-  updateBallScore();
-  ballMsg.textContent = 'Press START, then SHOOT when the marker hits green. Too early or too late and your digital brick joins the collection.';
-  drawBasketScene();
-  setBallMarker();
+  ballMade = 0; ballTaken = 0; updateBallScore();
 };
-drawBasketScene();
-setBallMarker();
-updateBallScore();
 
 // ==================== SNAKE ====================
 const arcadeCanvas=document.getElementById('arcade-canvas'), actx=arcadeCanvas.getContext('2d');
@@ -2129,6 +2207,7 @@ document.getElementById('begin').onclick = () => {
   if (!isMobile()) renderer.domElement.requestPointerLock();
   connectWS(rid);
   refreshAdminInfo();
+  document.getElementById('host-badge').style.display = isHostUser() ? 'block' : 'none';
 };
 
 // ==================== REMOTES ====================
