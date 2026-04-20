@@ -89,10 +89,17 @@ canvas { display: block; }
   #mobile-ctrls { display: block; }
   #hud { font-size: 10px; padding: 6px 8px; max-width: 160px; }
 }
+
+#error-overlay {
+  position: absolute; inset: 0; display: none; z-index: 500;
+  background: rgba(5,3,8,0.96); color: #ffb4b4; padding: 24px;
+  font: 14px/1.5 monospace; overflow: auto;
+}
+#error-overlay b { color: #ffd27a; display:block; margin-bottom:8px; }
 </style>
 </head>
 <body>
-<div id="game">
+<div id="game"><div id="error-overlay"></div>
 
   <div id="loading">
     <h1>THE VIBE ROOM</h1>
@@ -217,6 +224,17 @@ const WS_URL = (location.hostname === 'localhost' || location.hostname === '127.
 // ==================== LOADING UI ====================
 const loadBar = document.getElementById('load-bar');
 const loadMsg = document.getElementById('load-msg');
+const errorOverlay = document.getElementById('error-overlay');
+function showFatal(msg) {
+  console.error(msg);
+  errorOverlay.style.display = 'block';
+  errorOverlay.innerHTML = '<b>ROOM BUILD ERROR</b>' + String(msg).replace(/</g, '&lt;');
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('start').style.display = 'flex';
+}
+window.addEventListener('error', (e) => showFatal((e.message || 'Unknown error') + (e.filename ? '\n' + e.filename + ':' + e.lineno : '')));
+window.addEventListener('unhandledrejection', (e) => showFatal(e.reason || 'Unhandled promise rejection'));
+
 function setLoad(pct, msg) {
   loadBar.style.width = pct + '%';
   if (msg) loadMsg.textContent = msg;
@@ -259,7 +277,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
+if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.35;
 document.getElementById('game').appendChild(renderer.domElement);
@@ -875,7 +893,11 @@ function buildCustomRoom() {
 const BLOCKERS = [];
 const PLAYER_RADIUS = 0.42;
 
-buildCustomRoom();
+try {
+  buildCustomRoom();
+} catch (err) {
+  showFatal(err && err.stack ? err.stack : err);
+}
 
 // ==================== PLAYER SPAWN & ROOM BOUNDS ====================
 const FLOOR_Y = 0;
@@ -1464,7 +1486,7 @@ document.getElementById('ttt-reset').onclick=resetTTT;
 let fifaHome = 0, fifaAway = 0;
 function updateFifaScore() {
   document.getElementById('fifa-score').textContent = `HOME ${fifaHome} - ${fifaAway} AWAY`;
-  fifaScreenTex.dispose?.();
+  if (fifaScreenTex && fifaScreenTex.dispose) fifaScreenTex.dispose();
 }
 document.getElementById('fifa-shoot').onclick = () => {
   if (Math.random() < 0.55) fifaHome++; else fifaAway++;
@@ -1493,7 +1515,7 @@ const arcadeCanvas=document.getElementById('arcade-canvas'), actx=arcadeCanvas.g
 let snake,snakeDir,snakeFood,snakeScore,snakeLoop;
 function syncSnakePreview() {
   if (!snakeWallMesh) return;
-  snakePreviewTex.dispose?.();
+  if (snakePreviewTex && snakePreviewTex.dispose) snakePreviewTex.dispose();
   const c = document.createElement('canvas');
   c.width = 1024; c.height = 1024;
   const ctx = c.getContext('2d');
@@ -1568,7 +1590,9 @@ function finishLoading() {
   }, 500);
 }
 setLoad(95, 'FINALIZING...');
-finishLoading();
+setTimeout(() => {
+  try { finishLoading(); } catch (err) { showFatal(err && err.stack ? err.stack : err); }
+}, 120);
 
 // ==================== BEGIN ====================
 document.getElementById('begin').onclick = () => {
@@ -1628,7 +1652,7 @@ function updateRoomFx(t, dt) {
     safeDoor.position.x = -16.03 + (1 - Math.cos(safeOpen)) * 0.2;
     safeDoor.rotation.y = -safeOpen;
   }
-  if (fifaScreenMesh) fifaScreenMesh.material.emissive?.set?.(0x000000);
+  if (fifaScreenMesh) if (fifaScreenMesh && fifaScreenMesh.material && fifaScreenMesh.material.emissive) fifaScreenMesh.material.emissive.set(0x000000);
 }
 
 // ==================== LOOP ====================
