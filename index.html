@@ -316,20 +316,27 @@ CHARS.forEach((c, i) => {
 
 // ==================== THREE CORE ====================
 const MOBILE = window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 900;
+const HQ = !MOBILE;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x07080f);
-scene.fog = new THREE.FogExp2(0x07080f, MOBILE ? 0.0038 : 0.0058);
+scene.background = new THREE.Color(0x0a0d14);
+scene.fog = new THREE.FogExp2(0x0a0d14, MOBILE ? 0.0022 : 0.0035);
 
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.1, 240);
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(MOBILE ? Math.min(window.devicePixelRatio || 1, 1.2) : Math.min(window.devicePixelRatio, 1.75));
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  powerPreference: 'high-performance'
+});
+renderer.setPixelRatio(
+  MOBILE ? Math.min(window.devicePixelRatio || 1, 1.15)
+         : Math.min(window.devicePixelRatio, 2)
+);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.35;
+renderer.toneMappingExposure = MOBILE ? 1.75 : 1.95;
 document.getElementById('game').appendChild(renderer.domElement);
 
 // ==================== HELPERS ====================
@@ -691,11 +698,24 @@ function syncInteractAnchors() {
 function buildCustomRoom() {
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(44, 30),
-    new THREE.MeshStandardMaterial({ map: marbleTex, roughness: 0.2, metalness: 0.38, color: 0xffffff })
+    new THREE.MeshStandardMaterial({
+      map: marbleTex,
+      roughness: MOBILE ? 0.24 : 0.16,
+      metalness: MOBILE ? 0.28 : 0.42,
+      color: 0xffffff
+    })
   );
   floor.rotation.x = -Math.PI/2;
   floor.receiveShadow = true;
   roomGroup.add(floor);
+
+  const entryGlow = new THREE.Mesh(
+    new THREE.PlaneGeometry(10, 4.5),
+    new THREE.MeshBasicMaterial({ color: 0x173044, transparent: true, opacity: 0.18 })
+  );
+  entryGlow.rotation.x = -Math.PI/2;
+  entryGlow.position.set(0, 0.03, 12.5);
+  roomGroup.add(entryGlow);
 
   const underGlow = new THREE.Mesh(
     new THREE.PlaneGeometry(40, 26),
@@ -885,7 +905,7 @@ function buildCustomRoom() {
   boardWallMesh.position.set(12.5, 4.2, -13.62);
   roomGroup.add(boardWallMesh);
 
-  const boardGlow = box(9.4, 0.05, 0.28, 0xe8b96a, 0.1, 0.6);
+  const boardGlow = box(9.4, 0.05, 0.28, 0xe8b96a, 0.05, 0.8);
   boardGlow.position.set(12.5, 1.32, -13.55);
   roomGroup.add(boardGlow);
 
@@ -1089,13 +1109,33 @@ try {
   roomGroup.traverse((obj) => {
     if (!obj.material) return;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+
     mats.forEach((m) => {
-      if (m && m.color && !m.map && m.type !== 'MeshBasicMaterial') {
-        if (m.color.getHexString() === '111111' || m.color.getHexString() === '11161d' || m.color.getHexString() === '0f1115') {
-          m.color.setHex(0x2b313a);
+      if (!m) return;
+
+      if (m.color && !m.map && m.type !== 'MeshBasicMaterial') {
+        const darks = ['111111', '11161d', '0f1115', '101216', '171d26', '12151b', '1f242c', '252a32'];
+        if (darks.includes(m.color.getHexString())) {
+          m.color.setHex(0x3b4452);
         }
       }
-      if (m && 'roughness' in m && m.roughness > 0.82) m.roughness = 0.72;
+
+      if ('roughness' in m) {
+        m.roughness = Math.min(m.roughness, 0.58);
+      }
+
+      if ('metalness' in m) {
+        m.metalness = Math.max(m.metalness || 0, 0.18);
+      }
+
+      if ('envMapIntensity' in m) {
+        m.envMapIntensity = HQ ? 1.2 : 0.8;
+      }
+
+      if ('emissive' in m && m.emissive && !m.map) {
+        m.emissive.setHex(0x111111);
+        m.emissiveIntensity = 0.18;
+      }
     });
   });
 } catch (err) {
