@@ -140,22 +140,22 @@ canvas { display: block; }
 
 
 
-/* Phase 2 media wall overlay */
+#host-media-url { width:100%; margin-bottom:8px; }
 #tv-overlay {
-  position: absolute;
-  display: none;
-  z-index: 18;
-  pointer-events: none;
-  overflow: hidden;
-  border-radius: 6px;
-  box-shadow: 0 0 40px rgba(0,0,0,0.55), 0 0 18px rgba(232,185,106,0.25);
-  background: #000;
+  position:absolute;
+  display:none;
+  z-index:18;
+  overflow:hidden;
+  border-radius:6px;
+  box-shadow:0 0 40px rgba(0,0,0,0.55), 0 0 18px rgba(232,185,106,0.25);
+  background:#000;
+  pointer-events:none;
 }
 #tv-overlay iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-  pointer-events: auto;
+  width:100%;
+  height:100%;
+  border:none;
+  pointer-events:auto;
 }
 #tv-audio-join {
   position:absolute; left:50%; bottom:18px; transform:translateX(-50%);
@@ -164,7 +164,6 @@ canvas { display: block; }
   color:#e8b96a; border:1px solid #c89b4a; border-radius:10px;
   padding:10px 14px; font:12px/1.2 monospace; cursor:pointer;
 }
-#host-media-url { width:100%; margin-bottom:8px; }
 
 </style>
 </head>
@@ -320,7 +319,7 @@ canvas { display: block; }
   <div id="tv-overlay"><iframe id="tv-iframe" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
   <button id="tv-audio-join">JOIN TV AUDIO</button>
 
-<div id="mobile-ctrls">
+  <div id="mobile-ctrls">
     <div id="joystick"><div id="joy-knob"></div></div>
     <div id="mobile-btns">
       <div class="row">
@@ -543,7 +542,7 @@ function makeMarbleTexture() {
   t.repeat.set(5, 3);
   return t;
 }
-function makeWallTexture(baseA='#5d3a25', baseB='#3f2416', mortar='#2a1a12') {
+function makeWallTexture(baseA='#6a4129', baseB='#472918', mortar='#26170f') {
   const t = canvasTex(1024, 512, (ctx, w, h) => {
     const g = ctx.createLinearGradient(0,0,0,h);
     g.addColorStop(0, baseA);
@@ -557,11 +556,11 @@ function makeWallTexture(baseA='#5d3a25', baseB='#3f2416', mortar='#2a1a12') {
       const offset = (row % 2) ? brickW / 2 : 0;
       for (let col = -1; col < Math.ceil(w/brickW)+2; col++) {
         const x = col * brickW + offset;
-        const tint = (row + col) % 2 === 0 ? 10 : -6;
-        ctx.fillStyle = `rgb(${96+tint}, ${58+tint//2}, ${34+tint//3})`;
+        const tint = ((row + col) % 2 === 0) ? 10 : -6;
+        ctx.fillStyle = `rgb(${96+tint}, ${58+Math.floor(tint/2)}, ${34+Math.floor(tint/3)})`;
         ctx.fillRect(x+2, y+2, brickW-4, brickH-4);
         ctx.fillStyle = 'rgba(255,255,255,0.06)';
-        ctx.fillRect(x+6, y+6, brickW-26, 6);
+        ctx.fillRect(x+8, y+7, brickW-26, 5);
       }
     }
 
@@ -577,7 +576,7 @@ function makeWallTexture(baseA='#5d3a25', baseB='#3f2416', mortar='#2a1a12') {
       }
     }
 
-    for (let i = 0; i < 1000; i++) {
+    for (let i = 0; i < 900; i++) {
       ctx.fillStyle = `rgba(0,0,0,${0.02 + Math.random()*0.03})`;
       ctx.fillRect(Math.random()*w, Math.random()*h, 2, 2);
     }
@@ -653,7 +652,7 @@ function addSpot(x,y,z,color,intensity=1,distance=22,angle=Math.PI/5,targetY=0) 
 
 // ==================== MATERIALS / TEXTURES ====================
 const marbleTex = makeMarbleTexture();
-let wallTex = makeWallTexture();
+const wallTex = makeWallTexture();
 const cityTex = makeCityTexture();
 const fifaScreenTex = makeFifaTexture();
 const basketFloorTex = makeBasketballTexture();
@@ -704,7 +703,6 @@ let cashStack = null;
 let centerSculpture = null;
 let tableTopDisplay = null;
 let tableInteractAnchor = new THREE.Vector3(0,0,0);
-const wallMaterials = [];
 
 
 const HOST_PREFIX = '__HOST__';
@@ -725,13 +723,13 @@ let mediaScreenCanvas = null;
 let mediaScreenCtx = null;
 let mediaScreenTex = null;
 let tvCreated = false;
-let tvReady = false;
 let tvStartedByUser = false;
-const tvOverlay = document.getElementById('tv-overlay');
-const tvIframe = document.getElementById('tv-iframe');
-const tvAudioJoin = document.getElementById('tv-audio-join');
-const vibeStripMaterials = [];
-const vibeGlowMaterials = [];
+let wallMaterials = [];
+let vibeStripMaterials = [];
+let vibeGlowMaterials = [];
+let tvOverlay = null;
+let tvIframe = null;
+let tvAudioJoin = null;
 
 
 function ytIdFrom(input) {
@@ -776,8 +774,8 @@ function drawMediaScreen() {
     ctx.fillRect(240, 350, 800, 220);
     ctx.fillStyle = '#d8c8a8';
     ctx.font = '32px Arial';
-    ctx.fillText(tvStartedByUser ? 'TV IS LIVE IN ROOM' : 'TAP JOIN TV AUDIO ONCE', w/2, 460);
-    ctx.fillText('THEN WALK AROUND AND LET IT PLAY', w/2, 515);
+    ctx.fillText(tvStartedByUser ? 'TV IS LIVE IN ROOM' : 'PRESS E OR TAP AUDIO BUTTON', w/2, 460);
+    ctx.fillText('WALK AROUND WHILE IT PLAYS', w/2, 515);
   } else {
     ctx.fillStyle = '#f2e4c8';
     ctx.font = 'bold 48px Arial';
@@ -787,8 +785,12 @@ function drawMediaScreen() {
   }
   if (mediaScreenTex) mediaScreenTex.needsUpdate = true;
 }
-function ensureTVOverlay() {
-  if (!tvOverlay || !tvIframe) return;
+function ensureTVDom() {
+  if (tvCreated) return;
+  tvOverlay = document.getElementById('tv-overlay');
+  tvIframe = document.getElementById('tv-iframe');
+  tvAudioJoin = document.getElementById('tv-audio-join');
+  if (!tvOverlay || !tvIframe || !tvAudioJoin) return;
   tvCreated = true;
 }
 function placeTVOverlay() {
@@ -811,21 +813,23 @@ function placeTVOverlay() {
   tvOverlay.style.display = 'block';
 }
 function syncTVPlayback() {
+  ensureTVDom();
+  if (!tvCreated) return;
   if (!hostState.media.videoId) {
     tvOverlay.style.display = 'none';
     tvIframe.src = '';
     tvAudioJoin.style.display = 'none';
+    tvStartedByUser = false;
     drawMediaScreen();
     return;
   }
-  ensureTVOverlay();
-  placeTVOverlay();
   tvAudioJoin.style.display = tvStartedByUser ? 'none' : 'block';
+  placeTVOverlay();
   drawMediaScreen();
 }
 function startTVPlayback(withAudio=true) {
-  if (!hostState.media.videoId) return;
-  ensureTVOverlay();
+  ensureTVDom();
+  if (!tvCreated || !hostState.media.videoId) return;
   const elapsed = hostState.media.playing
     ? Math.max(0, Math.floor((Date.now() - hostState.media.startedAt) / 1000) + Math.floor(hostState.media.startAt || 0))
     : Math.floor(hostState.media.startAt || 0);
@@ -834,6 +838,7 @@ function startTVPlayback(withAudio=true) {
   tvStartedByUser = withAudio;
   syncTVPlayback();
 }
+
 function broadcastHostEvent(evt) {
   if (!wsConnected) return;
   wsSend({ type:'chat', data:{ name:'host', text: HOST_PREFIX + JSON.stringify(evt) } });
@@ -846,20 +851,20 @@ function applyVibe(mode) {
   let brickA = '#6a4129', brickB = '#472918', mortar = '#26170f';
   let bg = 0x0a0d14, fog = MOBILE ? 0.0022 : 0.0035, expo = MOBILE ? 1.75 : 1.95;
   let keyColor = 0xfff4d8, purple = 0x5e47ff, gold = 0xe8b96a, stripA = 0xe8b96a, stripB = 0x6a78ff;
-  let sculptureEmissive = 0x4a2400, boardColor = 0xe8b96a;
+  let sculptureEmissive = 0x4a2400;
 
   if (mode === 'war') {
     brickA = '#5a5c4a'; brickB = '#35392d'; mortar = '#1c1e17';
     bg = 0x0b1117; fog = MOBILE ? 0.0026 : 0.0040; expo = MOBILE ? 1.62 : 1.8;
-    keyColor = 0xe7f4d6; purple = 0x2cb35f; gold = 0xa9ff87; stripA = 0xb7ff80; stripB = 0x4cff9d; sculptureEmissive = 0x123d12; boardColor = 0x7adf9a;
+    keyColor = 0xe7f4d6; purple = 0x2cb35f; gold = 0xa9ff87; stripA = 0xb7ff80; stripB = 0x4cff9d; sculptureEmissive = 0x123d12;
   } else if (mode === 'after') {
     brickA = '#6c2d33'; brickB = '#3e1619'; mortar = '#1e0d0f';
     bg = 0x180910; fog = MOBILE ? 0.0017 : 0.0028; expo = MOBILE ? 1.9 : 2.12;
-    keyColor = 0xffe9da; purple = 0xb84cff; gold = 0xff7b5d; stripA = 0xff9966; stripB = 0xa668ff; sculptureEmissive = 0x5a1430; boardColor = 0xffa772;
+    keyColor = 0xffe9da; purple = 0xb84cff; gold = 0xff7b5d; stripA = 0xff9966; stripB = 0xa668ff; sculptureEmissive = 0x5a1430;
   } else if (mode === 'game') {
     brickA = '#6b4620'; brickB = '#45280f'; mortar = '#24160b';
     bg = 0x0b1118; fog = MOBILE ? 0.0019 : 0.0030; expo = MOBILE ? 1.86 : 2.08;
-    keyColor = 0xf8f2df; purple = 0x2f78ff; gold = 0xffcc42; stripA = 0xffcf56; stripB = 0x46a2ff; sculptureEmissive = 0x4d2b00; boardColor = 0xffcf56;
+    keyColor = 0xf8f2df; purple = 0x2f78ff; gold = 0xffcc42; stripA = 0xffcf56; stripB = 0x46a2ff; sculptureEmissive = 0x4d2b00;
   }
 
   scene.background.setHex(bg);
@@ -875,18 +880,13 @@ function applyVibe(mode) {
     m.needsUpdate = true;
   }
   for (let i = 0; i < vibeStripMaterials.length; i++) {
-    const m = vibeStripMaterials[i];
-    m.color.setHex(i % 2 === 0 ? stripA : stripB);
+    vibeStripMaterials[i].color.setHex(i % 2 === 0 ? stripA : stripB);
   }
   for (const m of vibeGlowMaterials) {
     if (m.color) m.color.setHex(stripB);
   }
   if (centerSculpture && centerSculpture.material) {
     centerSculpture.material.emissive.setHex(sculptureEmissive);
-  }
-  if (tableTopDisplay && tableTopDisplay.material && tableTopDisplay.material.map) {
-    tableTopDisplay.material.map = makeLabelTexture('WAR TABLE', mode.toUpperCase(), boardColor === 0x7adf9a ? '#7adf9a' : '#e8b96a', '#07101a');
-    tableTopDisplay.material.needsUpdate = true;
   }
 }
 function applyHostEvent(evt, local=false) {
@@ -907,9 +907,11 @@ function applyHostEvent(evt, local=false) {
     hostState.media.startAt = +evt.startAt || 0;
     hostState.media.startedAt = +evt.startedAt || Date.now();
     if (!hostState.media.videoId) {
-      tvIframe.src = '';
-      tvOverlay.style.display = 'none';
-      tvAudioJoin.style.display = 'none';
+      if (tvCreated) {
+        tvIframe.src = '';
+        tvOverlay.style.display = 'none';
+        tvAudioJoin.style.display = 'none';
+      }
       tvStartedByUser = false;
     } else if (local) {
       startTVPlayback(true);
@@ -1893,8 +1895,7 @@ document.getElementById('mic-badge').addEventListener('click', toggleMic);
 document.getElementById('admin-badge').addEventListener('click', () => {
   if ((player.name || '').toLowerCase() !== 'pax') return;
   setAdminMode(!adminMode);
-});
-document.getElementById('host-badge').addEventListener('click', () => {
+});document.getElementById('host-badge').addEventListener('click', () => {
   if (!isHostUser()) return;
   const p = document.getElementById('host-panel');
   p.style.display = p.style.display === 'block' ? 'none' : 'block';
@@ -1910,18 +1911,6 @@ document.querySelectorAll('#host-panel [data-vibe]').forEach(btn => {
     applyHostEvent(evt, true);
     broadcastHostEvent(evt);
   });
-});
-document.getElementById('host-money-rain').addEventListener('click', () => {
-  if (!isHostUser()) return;
-  const evt = { kind:'money' };
-  applyHostEvent(evt, true);
-  broadcastHostEvent(evt);
-});
-document.getElementById('host-pulse').addEventListener('click', () => {
-  if (!isHostUser()) return;
-  const evt = { kind:'pulse' };
-  applyHostEvent(evt, true);
-  broadcastHostEvent(evt);
 });
 document.getElementById('host-load-media').addEventListener('click', () => {
   if (!isHostUser()) return;
@@ -1941,9 +1930,17 @@ document.getElementById('host-stop-media').addEventListener('click', () => {
   applyHostEvent(evt, true);
   broadcastHostEvent(evt);
 });
-tvAudioJoin.addEventListener('click', () => {
-  if (!hostState.media.videoId) return;
-  startTVPlayback(true);
+document.getElementById('host-money-rain').addEventListener('click', () => {
+  if (!isHostUser()) return;
+  const evt = { kind:'money' };
+  applyHostEvent(evt, true);
+  broadcastHostEvent(evt);
+});
+document.getElementById('host-pulse').addEventListener('click', () => {
+  if (!isHostUser()) return;
+  const evt = { kind:'pulse' };
+  applyHostEvent(evt, true);
+  broadcastHostEvent(evt);
 });
 document.querySelectorAll('#host-panel [data-vibe]').forEach(btn => btn.addEventListener('click', () => {
   if (!isHostUser()) return;
