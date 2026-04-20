@@ -90,6 +90,44 @@ canvas { display: block; }
   #hud { font-size: 10px; padding: 6px 8px; max-width: 160px; }
 }
 
+/* Landscape phone cleanup */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 520px) {
+  #top-right { right: 8px; top: 8px; gap: 4px; }
+  .badge { font-size: 9px; padding: 4px 8px; }
+
+  #mobile-btns {
+    right: 10px;
+    bottom: 10px;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 6px;
+  }
+  #mobile-btns .row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #mobile-btns button {
+    width: 56px;
+    height: 56px;
+    font-size: 12px;
+  }
+  #btn-jump {
+    width: 56px !important;
+    height: 56px !important;
+    align-self: flex-end;
+  }
+
+  #tv-audio-join {
+    top: auto;
+    right: 145px;
+    bottom: 12px;
+    max-width: 120px;
+    padding: 7px 10px;
+    font-size: 10px;
+  }
+}
+
 #error-overlay {
   position: absolute; inset: 0; display: none; z-index: 500;
   background: rgba(5,3,8,0.96); color: #ffb4b4; padding: 24px;
@@ -546,11 +584,26 @@ function makeMarbleTexture(base='#0b0d12', veinA='rgba(230,230,230,0.08)', veinB
   t.repeat.set(5, 3);
   return t;
 }
-function makeWallTexture(baseA='#6a4129', baseB='#472918', mortar='#26170f') {
+const WALL_STYLES = {
+  brick_chill:  { baseA:'#6a4129', baseB:'#472918', mortar:'#26170f', brickA:[106,65,41], brickB:[80,47,29], line:'rgba(232,185,106,0.08)' },
+  concrete_war: { baseA:'#3a4046', baseB:'#252a30', mortar:'#1a1f24', brickA:[68,76,84],  brickB:[52,58,66], line:'rgba(120,255,160,0.06)' },
+  brick_after:  { baseA:'#5b2f3a', baseB:'#361722', mortar:'#1f0d14', brickA:[96,50,64],  brickB:[70,30,44], line:'rgba(255,160,255,0.06)' },
+  panel_game:   { baseA:'#1d2f44', baseB:'#111c2f', mortar:'#0a121d', brickA:[36,62,92],  brickB:[24,42,66], line:'rgba(70,162,255,0.10)' }
+};
+
+function makeWallTexture(styleOrBaseA='brick_chill', baseB, mortar) {
+  const picked = WALL_STYLES[styleOrBaseA];
+  const finalBaseA = picked ? picked.baseA : (styleOrBaseA || '#6a4129');
+  const finalBaseB = picked ? picked.baseB : (baseB || '#472918');
+  const finalMortar = picked ? picked.mortar : (mortar || '#26170f');
+  const finalBrickA = picked ? picked.brickA : [96, 58, 34];
+  const finalBrickB = picked ? picked.brickB : [86, 52, 31];
+  const accentLine = picked ? picked.line : 'rgba(232,185,106,0.08)';
+
   const t = canvasTex(1024, 512, (ctx, w, h) => {
     const g = ctx.createLinearGradient(0,0,0,h);
-    g.addColorStop(0, baseA);
-    g.addColorStop(1, baseB);
+    g.addColorStop(0, finalBaseA);
+    g.addColorStop(1, finalBaseB);
     ctx.fillStyle = g;
     ctx.fillRect(0,0,w,h);
 
@@ -561,14 +614,18 @@ function makeWallTexture(baseA='#6a4129', baseB='#472918', mortar='#26170f') {
       for (let col = -1; col < Math.ceil(w/brickW)+2; col++) {
         const x = col * brickW + offset;
         const tint = ((row + col) % 2 === 0) ? 10 : -6;
-        ctx.fillStyle = `rgb(${96+tint}, ${58+Math.floor(tint/2)}, ${34+Math.floor(tint/3)})`;
+        const brickBase = ((row + col) % 2 === 0) ? finalBrickA : finalBrickB;
+        const rr = Math.max(0, Math.min(255, brickBase[0] + tint));
+        const gg = Math.max(0, Math.min(255, brickBase[1] + Math.floor(tint / 2)));
+        const bb = Math.max(0, Math.min(255, brickBase[2] + Math.floor(tint / 3)));
+        ctx.fillStyle = `rgb(${rr}, ${gg}, ${bb})`;
         ctx.fillRect(x+2, y+2, brickW-4, brickH-4);
         ctx.fillStyle = 'rgba(255,255,255,0.06)';
         ctx.fillRect(x+8, y+7, brickW-26, 5);
       }
     }
 
-    ctx.strokeStyle = mortar;
+    ctx.strokeStyle = finalMortar;
     ctx.lineWidth = 4;
     for (let row = 0; row < Math.ceil(h/brickH)+1; row++) {
       const y = row * brickH;
@@ -585,7 +642,7 @@ function makeWallTexture(baseA='#6a4129', baseB='#472918', mortar='#26170f') {
       ctx.fillRect(Math.random()*w, Math.random()*h, 2, 2);
     }
 
-    ctx.fillStyle = 'rgba(232,185,106,0.08)';
+    ctx.fillStyle = accentLine;
     ctx.fillRect(0, h-16, w, 10);
   });
   t.repeat.set(4, 1.6);
@@ -907,6 +964,7 @@ function isHostUser() {
 function applyVibe(mode) {
   activeVibe = mode;
   let wallStyle = 'brick_chill';
+  let wallColor = 0xf2ebe0;
   let floorBase = '#0b0d12', veinA = 'rgba(240,240,240,0.08)', veinB = 'rgba(185,155,100,0.07)', grid = 'rgba(255,255,255,0.05)', gloss='rgba(255,255,255,0.025)';
   let bg = 0x0a0d14, fog = MOBILE ? 0.0022 : 0.0035, expo = MOBILE ? 1.75 : 1.95;
   let keyColor = 0xfff4d8, purple = 0x5e47ff, gold = 0xe8b96a, stripA = 0xe8b96a, stripB = 0x6a78ff;
@@ -914,18 +972,21 @@ function applyVibe(mode) {
 
   if (mode === 'war') {
     wallStyle = 'concrete_war';
+    wallColor = 0xd9dde2;
     floorBase = '#1a1d21'; veinA = 'rgba(240,240,240,0.05)'; veinB = 'rgba(120,255,160,0.06)'; grid = 'rgba(255,255,255,0.025)'; gloss='rgba(255,255,255,0.012)';
     bg = 0x0b1117; fog = MOBILE ? 0.0028 : 0.0041; expo = MOBILE ? 1.64 : 1.82;
     keyColor = 0xe7f4d6; purple = 0x2cb35f; gold = 0xa9ff87; stripA = 0xb7ff80; stripB = 0x4cff9d; sculptureEmissive = 0x123d12;
     mediaFrameColor = 0x2b3a31; floorTint = 0xe7f0ea;
   } else if (mode === 'after') {
     wallStyle = 'brick_after';
+    wallColor = 0xf3e0e7;
     floorBase = '#140c12'; veinA = 'rgba(255,220,220,0.07)'; veinB = 'rgba(180,90,255,0.10)'; grid = 'rgba(255,255,255,0.02)'; gloss='rgba(255,160,255,0.02)';
     bg = 0x180910; fog = MOBILE ? 0.0017 : 0.0028; expo = MOBILE ? 1.92 : 2.14;
     keyColor = 0xffe9da; purple = 0xb84cff; gold = 0xff7b5d; stripA = 0xff9966; stripB = 0xa668ff; sculptureEmissive = 0x5a1430;
     mediaFrameColor = 0x3a2330; floorTint = 0xfff2f8;
   } else if (mode === 'game') {
     wallStyle = 'panel_game';
+    wallColor = 0xe8f0ff;
     floorBase = '#0a1018'; veinA = 'rgba(120,220,255,0.10)'; veinB = 'rgba(255,220,80,0.10)'; grid = 'rgba(255,255,255,0.03)'; gloss='rgba(255,255,255,0.018)';
     bg = 0x0b1118; fog = MOBILE ? 0.0019 : 0.0030; expo = MOBILE ? 1.88 : 2.1;
     keyColor = 0xf8f2df; purple = 0x2f78ff; gold = 0xffcc42; stripA = 0xffcf56; stripB = 0x46a2ff; sculptureEmissive = 0x4d2b00;
@@ -942,7 +1003,7 @@ function applyVibe(mode) {
   wallTex = makeWallTexture(wallStyle);
   for (const m of wallMaterials) {
     m.map = wallTex;
-    m.color.setHex(0xf2ebe0);
+    m.color.setHex(wallColor);
     m.needsUpdate = true;
   }
 
