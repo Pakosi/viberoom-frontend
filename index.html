@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -180,27 +181,26 @@ canvas { display: block; }
 
 #host-media-url { width:100%; margin-bottom:8px; }
 #tv-overlay {
-  position:absolute;
-  display:none;
-  z-index:18;
-  overflow:hidden;
-  border-radius:6px;
-  box-shadow:0 0 40px rgba(0,0,0,0.55), 0 0 18px rgba(232,185,106,0.25);
-  background:#000;
-  pointer-events:none;
+  position: fixed;
+  display: none;
+  z-index: 18;
+  overflow: hidden;
+  border-radius: 3px;
+  pointer-events: none;
+  background: #000;
 }
 #tv-overlay iframe {
-  width:100%;
-  height:100%;
-  border:none;
-  pointer-events:none;
+  width: 100%;
+  height: 100%;
+  border: none;
+  pointer-events: none;
 }
 #tv-audio-join {
-  position:absolute; right:14px; top:250px;
-  z-index:22; display:none;
+  position: absolute; right: 14px; top: 250px;
+  z-index: 22; display: none;
   background: rgba(10,12,18,0.92);
-  color:#e8b96a; border:1px solid #c89b4a; border-radius:10px;
-  padding:8px 12px; font:11px/1.2 monospace; cursor:pointer;
+  color: #e8b96a; border: 1px solid #c89b4a; border-radius: 10px;
+  padding: 8px 12px; font: 11px/1.2 monospace; cursor: pointer;
   max-width: 150px;
 }
 
@@ -356,7 +356,7 @@ canvas { display: block; }
   </div>
 
   <div id="tv-overlay"><iframe id="tv-iframe" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
-  <button id="tv-audio-join">V / ♪ TV AUDIO</button>
+  <button id="tv-audio-join">♪ ENABLE TV AUDIO</button>
 
   <div id="mobile-ctrls">
     <div id="joystick"><div id="joy-knob"></div></div>
@@ -839,14 +839,14 @@ function drawMediaScreen() {
     ctx.fillRect(240, 350, 800, 220);
     ctx.fillStyle = '#d8c8a8';
     ctx.font = '32px Arial';
-    ctx.fillText(tvStartedByUser ? 'TV IS LIVE IN ROOM' : 'PRESS E OR TAP AUDIO BUTTON', w/2, 460);
+    ctx.fillText('PRESS E OR V TO OPEN TV', w/2, 460);
     ctx.fillText('WALK AROUND WHILE IT PLAYS', w/2, 515);
   } else {
     ctx.fillStyle = '#f2e4c8';
     ctx.font = 'bold 48px Arial';
     ctx.fillText('HOST CONSOLE READY', w/2, 240);
     ctx.font = '32px Arial';
-    ctx.fillText('Load a YouTube link to turn this wall into the room TV.', w/2, 320);
+    ctx.fillText('Press E near the TV or V to open · search anything', w/2, 320);
   }
   if (mediaScreenTex) mediaScreenTex.needsUpdate = true;
 }
@@ -858,62 +858,35 @@ function ensureTVDom() {
   if (!tvOverlay || !tvIframe || !tvAudioJoin) return;
   tvCreated = true;
 }
-function placeTVOverlay() {
-  if (!tvCreated || !mediaScreenMesh || !hostState.media.videoId) return;
-
-  const camPos = camera.getWorldPosition(new THREE.Vector3());
-  const screenPos = mediaScreenMesh.getWorldPosition(new THREE.Vector3());
-  const dist = camPos.distanceTo(screenPos);
-  if (dist < 7.5) { tvOverlay.style.display = 'none'; return; }
-
-  const toCam = camPos.clone().sub(screenPos).normalize();
-  const screenNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(mediaScreenMesh.getWorldQuaternion(new THREE.Quaternion()));
-  const facing = screenNormal.dot(toCam);
-  if (facing < 0.45) { tvOverlay.style.display = 'none'; return; }
-
+function snapTVOverlay() {
+  if (!tvCreated || !mediaScreenMesh) return;
   const corners = [
     new THREE.Vector3(-4.8,  2.55, 0),
     new THREE.Vector3( 4.8,  2.55, 0),
     new THREE.Vector3(-4.8, -2.55, 0),
     new THREE.Vector3( 4.8, -2.55, 0)
   ];
-
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  let visible = false;
-
+  let behindCount = 0;
   for (const c of corners) {
     const wp = mediaScreenMesh.localToWorld(c.clone());
     wp.project(camera);
-    if (wp.z > -1 && wp.z < 1) visible = true;
-    const sx = (wp.x * 0.5 + 0.5) * window.innerWidth;
+    if (wp.z > 1) { behindCount++; continue; }
+    const sx = (wp.x *  0.5 + 0.5) * window.innerWidth;
     const sy = (-wp.y * 0.5 + 0.5) * window.innerHeight;
     minX = Math.min(minX, sx); maxX = Math.max(maxX, sx);
     minY = Math.min(minY, sy); maxY = Math.max(maxY, sy);
   }
-
-  if (!visible || !isFinite(minX) || !isFinite(minY)) {
-    tvOverlay.style.display = 'none';
-    return;
-  }
-
-  let width = Math.max(180, maxX - minX - 4);
-  let height = Math.max(100, maxY - minY - 4);
-
-  const maxW = window.innerWidth * 0.38;
-  const maxH = window.innerHeight * 0.34;
-  const scale = Math.min(1, maxW / width, maxH / height);
-  width *= scale;
-  height *= scale;
-
-  const centerX = (minX + maxX) / 2;
-  const centerY = (minY + maxY) / 2;
-
-  tvOverlay.style.left = (centerX - width / 2) + 'px';
-  tvOverlay.style.top = (centerY - height / 2) + 'px';
-  tvOverlay.style.width = width + 'px';
-  tvOverlay.style.height = height + 'px';
+  if (behindCount === 4 || !isFinite(minX)) { tvOverlay.style.display = 'none'; return; }
+  tvOverlay.style.left   = minX + 'px';
+  tvOverlay.style.top    = minY + 'px';
+  tvOverlay.style.width  = (maxX - minX) + 'px';
+  tvOverlay.style.height = (maxY - minY) + 'px';
   tvOverlay.style.display = 'block';
 }
+
+function placeTVOverlay() {}
+
 function syncTVPlayback() {
   ensureTVDom();
   if (!tvCreated) return;
@@ -925,8 +898,8 @@ function syncTVPlayback() {
     drawMediaScreen();
     return;
   }
+  tvOverlay.style.display = 'block';
   tvAudioJoin.style.display = tvStartedByUser ? 'none' : 'block';
-  placeTVOverlay();
   drawMediaScreen();
 }
 
@@ -947,6 +920,7 @@ function startTVPlayback(withAudio=true) {
   const muteFlag = withAudio ? 0 : 1;
   tvIframe.src = `https://www.youtube.com/embed/${hostState.media.videoId}?autoplay=1&playsinline=1&controls=1&rel=0&modestbranding=1&start=${elapsed}&mute=${muteFlag}`;
   tvStartedByUser = withAudio;
+  snapTVOverlay();
   syncTVPlayback();
 }
 
@@ -1958,7 +1932,7 @@ let viewMode = 'third';
 
 document.addEventListener('keydown', e => {
   keys[e.key.toLowerCase()] = true;
-  if (e.key === 'Escape') closeAllPanels();
+  if (e.key === 'Escape') { closeAllPanels(); }
   if (anyPanelOpen()) return;
   if (e.key.toLowerCase() === 't') { e.preventDefault(); openPanel('chat-panel'); setTimeout(()=>document.getElementById('chat-input').focus(),50); }
   if (e.key.toLowerCase() === 'e') { e.preventDefault(); tryInteract(); }
@@ -1967,7 +1941,8 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     if (player.onGround) { player.vel.y = 7; player.onGround = false; }
   }
-  if (e.key.toLowerCase() === 'v') toggleView();
+  if (e.key.toLowerCase() === 'v') { e.preventDefault(); joinTVAudioAnywhere(); }
+  if (e.key.toLowerCase() === 'c') toggleView();
 });
 document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
@@ -2046,6 +2021,7 @@ document.getElementById('btn-e').addEventListener('touchstart', e => { e.prevent
 document.getElementById('btn-t').addEventListener('touchstart', e => { e.preventDefault(); openPanel('chat-panel'); setTimeout(()=>document.getElementById('chat-input').focus(),50); }, { passive:false });
 document.getElementById('btn-view').addEventListener('touchstart', e => { e.preventDefault(); toggleView(); }, { passive:false });
 document.getElementById('btn-mic').addEventListener('touchstart', e => { e.preventDefault(); toggleMic(); }, { passive:false });
+document.getElementById('btn-music').addEventListener('touchstart', e => { e.preventDefault(); joinTVAudioAnywhere(); }, { passive:false });
 document.getElementById('view-badge').addEventListener('click', toggleView);
 document.getElementById('mic-badge').addEventListener('click', toggleMic);
 document.getElementById('admin-badge').addEventListener('click', () => {
@@ -2089,6 +2065,9 @@ document.getElementById('host-stop-media').addEventListener('click', () => {
   applyRoomState({ media });
   sendRoomStatePatch({ vibe: hostState.vibe, media });
 });
+
+document.getElementById('tv-audio-join').addEventListener('click', joinTVAudioAnywhere);
+
 document.getElementById('host-money-rain').addEventListener('click', () => {
   if (!isHostUser()) return;
   const evt = { kind:'money' };
@@ -2605,6 +2584,7 @@ function animate() {
   updateRoomFx(t, dt);
   updateCamera();
   renderer.render(scene, camera);
+  if (tvCreated && tvStartedByUser && hostState.media.videoId) snapTVOverlay();
 }
 animate();
 
@@ -2612,6 +2592,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  if (tvCreated && tvStartedByUser && hostState.media.videoId) snapTVOverlay();
 });
 
 setInterval(() => { if (wsConnected) wsSend({type:'ping'}); }, 25000);
