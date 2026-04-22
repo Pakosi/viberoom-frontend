@@ -197,3 +197,28 @@ canvas { display: block; }
   max-width: 150px;
 }
 
+
+
+#fifa-panel { width: min(760px, 96vw); text-align:center; }
+#fifa-canvas { box-shadow: 0 0 28px rgba(0,0,0,0.45), 0 0 18px rgba(200,155,74,0.18); }
+.fifa-meta {
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 10px 0 2px;
+}
+.fifa-meta > div {
+  background:#0f0b07;
+  border:1px solid #4a3a28;
+  color:#e8d8a8;
+  padding:8px;
+  border-radius:4px;
+  font-size:11px;
+  line-height:1.35;
+}
+#fifa-clock { color:#e8b96a; font-weight:bold; }
+#fifa-fever { color:#7adf9a; font-weight:bold; }
+#fifa-commentary { grid-column: 1 / -1; color:#d8c8a8; }
+@media (max-width: 700px) {
+  .fifa-meta { grid-template-columns: 1fr; }
+}
