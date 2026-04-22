@@ -916,15 +916,6 @@ function updateUI() {
 // ==================== START ====================
 resetSoccerMatch();
 loop();
-function startSoccerGame() {
-  if (!soccerGame.running) {
-    soccerGame.running = true;
-  }
-}
-
-function stopSoccerGame() {
-  soccerGame.running = false;
-}
 // ==================== BASKETBALL PANEL ====================
 let ballMade = 0, ballTaken = 0;
 function updateBallScore() {
