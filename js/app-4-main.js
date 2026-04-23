@@ -5,7 +5,7 @@ const arcadePanel = document.getElementById('arcade-panel');
 const arcadeScoreEl = document.getElementById('arcade-score');
 const arcadeMetaEl = arcadePanel.querySelector('.mini-sub');
 const arcadeTitleEl = arcadePanel.querySelector('h2');
-if (arcadeTitleEl) arcadeTitleEl.textContent = '◆ VIBE FIGHTER ◆';
+if (arcadeTitleEl) arcadeTitleEl.textContent = '◆ WOYS FIGHTER ◆';
 if (arcadeMetaEl) arcadeMetaEl.textContent = 'A/D move · W jump · S crouch · J light · K heavy · L special · Mobile: left drag + right attack pads';
 arcadeCanvas.style.touchAction = 'none';
 
@@ -109,7 +109,7 @@ function stopArcade() {
 }
 
 function startArcade() {
-  if (arcadeTitleEl) arcadeTitleEl.textContent = '◆ VIBE FIGHTER ◆';
+  if (arcadeTitleEl) arcadeTitleEl.textContent = '◆ WOYS FIGHTER ◆';
   if (fighterGame.state === 'attract' || !fighterGame.p1 || !fighterGame.p2) {
     resetFighterRound(true);
   }
@@ -130,7 +130,7 @@ function syncSnakePreview() {
   ctx.fillStyle = '#e8b96a';
   ctx.font = 'bold 74px Arial';
   ctx.textAlign = 'center';
-  ctx.fillText('VIBE FIGHTER', 512, 94);
+  ctx.fillText('WOYS FIGHTER', 512, 94);
   ctx.fillStyle = '#d8c8a8';
   ctx.font = '32px Arial';
   const subtitle = fighterGame.running ? 'LIVE CABINET MATCH' : 'PRESS E TO THROW HANDS';
@@ -556,7 +556,7 @@ function drawAttractOrGame() {
     actx.fillStyle = '#e8b96a';
     actx.font = 'bold 30px Arial';
     actx.textAlign = 'center';
-    actx.fillText('VIBE FIGHTER', 160, 54);
+    actx.fillText('WOYS FIGHTER', 160, 54);
     actx.fillStyle = '#f2e4c8';
     actx.font = 'bold 13px Courier New';
     actx.fillText('PRESTIGE ARCADE VIOLENCE', 160, 76);
@@ -720,7 +720,7 @@ document.addEventListener('keydown', onArcadeKeyDown);
 document.addEventListener('keyup', onArcadeKeyUp);
 
 fighterGame.state = 'attract';
-setArcadeHud('VIBE FIGHTER · IDLE', 'Press E at the cabinet to launch the most illegal-looking premium mini fighter in the room.');
+setArcadeHud('WOYS FIGHTER · IDLE', 'Press E at the cabinet to launch the most illegal-looking premium mini fighter in the room.');
 drawAttractOrGame();
 
 // ==================== FINISH LOADING → SHOW START ====================
@@ -747,7 +747,7 @@ document.getElementById('begin').onclick = () => {
   player.group.position.copy(pos);
   scene.add(player.group);
 
-  const rid = document.getElementById('room-input').value.trim() || 'vibe-room';
+  const rid = document.getElementById('room-input').value.trim() || 'woys-room';
   document.getElementById('start').style.display = 'none';
   document.getElementById('hud').style.display = 'block';
   document.getElementById('top-right').style.display = 'flex';
