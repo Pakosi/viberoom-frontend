@@ -3,8 +3,13 @@ const FLOOR_Y = 0;
 const BOUNDS = { minX: -42.2, maxX: 42.2, minZ: -28.6, maxZ: 28.6 };
 const LOFT_Y = 7.2;
 const LOFT_ZONE = { minX: 17.8, maxX: 41.4, minZ: -24.0, maxZ: 17.2 };
-const STAIR_ZONE = { minX: 35.0, maxX: 41.2, minZ: 2.6, maxZ: 17.0 };
+const STAIR_MID_Y = LOFT_Y * 0.5;
+const STAIR_LOWER_ZONE = { minX: 34.8, maxX: 41.3, minZ: 9.4, maxZ: 20.2 };
+const STAIR_MID_LANDING_ZONE = { minX: 34.8, maxX: 41.3, minZ: 6.2, maxZ: 9.8 };
+const STAIR_UPPER_ZONE = { minX: 25.7, maxX: 37.8, minZ: 4.9, maxZ: 11.2 };
+const STAIR_TOP_LANDING_ZONE = { minX: 23.4, maxX: 27.8, minZ: 4.9, maxZ: 11.2 };
 const LOFT_SNAP_TOLERANCE = 1.4;
+const STAIR_MID_SNAP_TOLERANCE = 1.0;
 
 const INTERACTS = [
   { type: 'whiteboard', x: 12.5,  z: -11.7, r: 4.4, label: 'PRESENTATION WALL ✏️' },
@@ -583,8 +588,17 @@ function inWalkZone(x, z, zone) {
 }
 
 function groundAt(x, z, currentY = FLOOR_Y) {
-  if (inWalkZone(x, z, STAIR_ZONE)) {
-    return FLOOR_Y + ((z - STAIR_ZONE.minZ) / (STAIR_ZONE.maxZ - STAIR_ZONE.minZ)) * LOFT_Y;
+  if (inWalkZone(x, z, STAIR_LOWER_ZONE)) {
+    return FLOOR_Y + ((STAIR_LOWER_ZONE.maxZ - z) / (STAIR_LOWER_ZONE.maxZ - STAIR_LOWER_ZONE.minZ)) * STAIR_MID_Y;
+  }
+  if (inWalkZone(x, z, STAIR_MID_LANDING_ZONE) && currentY >= STAIR_MID_Y - STAIR_MID_SNAP_TOLERANCE) {
+    return STAIR_MID_Y;
+  }
+  if (inWalkZone(x, z, STAIR_UPPER_ZONE) && currentY >= STAIR_MID_Y - STAIR_MID_SNAP_TOLERANCE) {
+    return STAIR_MID_Y + ((STAIR_UPPER_ZONE.maxX - x) / (STAIR_UPPER_ZONE.maxX - STAIR_UPPER_ZONE.minX)) * STAIR_MID_Y;
+  }
+  if (inWalkZone(x, z, STAIR_TOP_LANDING_ZONE) && currentY >= LOFT_Y - LOFT_SNAP_TOLERANCE) {
+    return LOFT_Y;
   }
   if (inWalkZone(x, z, LOFT_ZONE) && currentY >= LOFT_Y - LOFT_SNAP_TOLERANCE) {
     return LOFT_Y;

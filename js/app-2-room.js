@@ -861,39 +861,130 @@ function buildCustomRoom() {
   }
 
   const stairGroup = new THREE.Group();
-  stairGroup.position.set(38.1, 0, 2.6);
   roomGroup.add(stairGroup);
-  const ramp = new THREE.Mesh(
-    new THREE.BoxGeometry(5.4, 0.18, 15.0),
-    new THREE.MeshStandardMaterial({ color: 0x151922, roughness: 0.34, metalness: 0.52 })
-  );
-  ramp.position.set(0, LOFT_H / 2, 7.2);
-  ramp.rotation.x = -Math.atan(LOFT_H / 14.4);
-  ramp.receiveShadow = true;
-  stairGroup.add(ramp);
-  for (let i = 0; i < 16; i++) {
-    const step = box(5.6, 0.12, 0.75, 0x2b3039, 0.3, 0.54);
-    step.position.set(0, 0.22 + i * (LOFT_H / 16), 0.45 + i * 0.9);
+  const stairMat = new THREE.MeshStandardMaterial({ color: 0x252a31, roughness: 0.34, metalness: 0.46 });
+  const stringerMat = new THREE.MeshStandardMaterial({ color: 0x11151c, roughness: 0.28, metalness: 0.72 });
+  metalAccentMaterials.push(stringerMat);
+  const lowerX = 38.1;
+  const lowerStartZ = 20.2;
+  const lowerEndZ = 9.4;
+  const lowerRun = lowerStartZ - lowerEndZ;
+  const lowerCenterZ = (lowerStartZ + lowerEndZ) / 2;
+  const upperStartX = 37.6;
+  const upperEndX = 25.8;
+  const upperRun = upperStartX - upperEndX;
+  const upperCenterX = (upperStartX + upperEndX) / 2;
+  const stairWidth = 6.2;
+  const midY = LOFT_H * 0.5;
+  const lowerAngle = Math.atan(midY / lowerRun);
+  const upperAngle = -Math.atan(midY / upperRun);
+  const helperMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
+
+  const lowerRamp = new THREE.Mesh(new THREE.BoxGeometry(stairWidth, 0.16, lowerRun), helperMat);
+  lowerRamp.position.set(lowerX, midY / 2, lowerCenterZ);
+  lowerRamp.rotation.x = lowerAngle;
+  lowerRamp.visible = false;
+  stairGroup.add(lowerRamp);
+  const upperRamp = new THREE.Mesh(new THREE.BoxGeometry(upperRun, 0.16, stairWidth), helperMat);
+  upperRamp.position.set(upperCenterX, midY + midY / 2, 8.0);
+  upperRamp.rotation.z = upperAngle;
+  upperRamp.visible = false;
+  stairGroup.add(upperRamp);
+
+  const midLanding = box(stairWidth + 0.45, 0.32, 4.0, 0x242a32, 0.32, 0.5);
+  midLanding.position.set(lowerX, midY, 8.0);
+  stairGroup.add(midLanding);
+  const topLanding = box(4.8, 0.3, stairWidth + 0.2, 0x242a32, 0.32, 0.5);
+  topLanding.position.set(24.9, LOFT_H, 8.0);
+  stairGroup.add(topLanding);
+
+  for (const x of [lowerX - stairWidth / 2 - 0.18, lowerX + stairWidth / 2 + 0.18]) {
+    const stringer = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.46, lowerRun + 0.7), stringerMat);
+    stringer.position.set(x, midY / 2 + 0.05, lowerCenterZ);
+    stringer.rotation.x = lowerAngle;
+    stairGroup.add(stringer);
+  }
+  for (const z of [8.0 - stairWidth / 2 - 0.18, 8.0 + stairWidth / 2 + 0.18]) {
+    const stringer = new THREE.Mesh(new THREE.BoxGeometry(upperRun + 0.7, 0.46, 0.24), stringerMat);
+    stringer.position.set(upperCenterX, midY + midY / 2 + 0.05, z);
+    stringer.rotation.z = upperAngle;
+    stairGroup.add(stringer);
+  }
+
+  for (let i = 0; i < 10; i++) {
+    const p = (i + 0.5) / 10;
+    const step = new THREE.Mesh(new THREE.BoxGeometry(stairWidth, 0.24, 0.86), stairMat);
+    step.position.set(lowerX, p * midY + 0.08, lowerStartZ - p * lowerRun);
+    step.castShadow = true;
+    step.receiveShadow = true;
     stairGroup.add(step);
-    const lip = box(5.5, 0.035, 0.06, 0xe8b96a, 0.16, 0.72);
-    lip.position.set(0, step.position.y + 0.08, step.position.z + 0.33);
+    const lip = box(stairWidth - 0.25, 0.04, 0.08, 0xe8b96a, 0.16, 0.76);
+    lip.position.set(lowerX, step.position.y + 0.15, step.position.z - 0.42);
     vibeGlowMaterials.push(lip.material);
     stairGroup.add(lip);
   }
-  for (const x of [-2.9, 2.9]) {
-    const stairRail = cyl(0.045, 0.06, 15.8, 0xd3a24f, 8, 0.2, 0.82);
-    stairRail.rotation.x = Math.PI / 2 - Math.atan(LOFT_H / 14.4);
-    stairRail.position.set(x, LOFT_H / 2 + 1.05, 7.2);
-    vibeStripMaterials.push(stairRail.material);
-    metalAccentMaterials.push(stairRail.material);
-    stairGroup.add(stairRail);
+  for (let i = 0; i < 10; i++) {
+    const p = (i + 0.5) / 10;
+    const step = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.24, stairWidth), stairMat);
+    step.position.set(upperStartX - p * upperRun, midY + p * midY + 0.08, 8.0);
+    step.castShadow = true;
+    step.receiveShadow = true;
+    stairGroup.add(step);
+    const lip = box(0.08, 0.04, stairWidth - 0.25, 0xe8b96a, 0.16, 0.76);
+    lip.position.set(step.position.x - 0.42, step.position.y + 0.15, 8.0);
+    vibeGlowMaterials.push(lip.material);
+    stairGroup.add(lip);
   }
+
+  for (const side of [-1, 1]) {
+    const railX = lowerX + side * (stairWidth / 2 + 0.35);
+    for (let i = 0; i <= 4; i++) {
+      const p = i / 4;
+      const post = cyl(0.055, 0.075, 1.35, 0x161a22, 8, 0.28, 0.78);
+      post.position.set(railX, p * midY + 0.72, lowerStartZ - p * lowerRun);
+      stairGroup.add(post);
+    }
+    const handrail = box(0.14, 0.12, lowerRun + 0.6, 0xd3a24f, 0.18, 0.82);
+    handrail.position.set(railX, midY / 2 + 1.35, lowerCenterZ);
+    handrail.rotation.x = lowerAngle;
+    vibeStripMaterials.push(handrail.material);
+    metalAccentMaterials.push(handrail.material);
+    stairGroup.add(handrail);
+    for (let i = 0; i < 4; i++) {
+      const p = (i + 0.5) / 4;
+      const pane = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.8, 2.0), railMat);
+      pane.position.set(railX, p * midY + 0.72, lowerStartZ - p * lowerRun);
+      stairGroup.add(pane);
+    }
+  }
+  for (const side of [-1, 1]) {
+    const railZ = 8.0 + side * (stairWidth / 2 + 0.35);
+    for (let i = 0; i <= 4; i++) {
+      const p = i / 4;
+      const post = cyl(0.055, 0.075, 1.35, 0x161a22, 8, 0.28, 0.78);
+      post.position.set(upperStartX - p * upperRun, midY + p * midY + 0.72, railZ);
+      stairGroup.add(post);
+    }
+    const handrail = box(upperRun + 0.6, 0.12, 0.14, 0xd3a24f, 0.18, 0.82);
+    handrail.position.set(upperCenterX, midY + midY / 2 + 1.35, railZ);
+    handrail.rotation.z = upperAngle;
+    vibeStripMaterials.push(handrail.material);
+    metalAccentMaterials.push(handrail.material);
+    stairGroup.add(handrail);
+    for (let i = 0; i < 4; i++) {
+      const p = (i + 0.5) / 4;
+      const pane = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.8, 0.055), railMat);
+      pane.position.set(upperStartX - p * upperRun, midY + p * midY + 0.72, railZ);
+      stairGroup.add(pane);
+    }
+  }
+
   const underStairGlow = new THREE.Mesh(
-    new THREE.PlaneGeometry(5.2, 8.0),
+    new THREE.PlaneGeometry(stairWidth, 8.2),
     new THREE.MeshBasicMaterial({ color: 0xffb45f, transparent: true, opacity: 0.18 })
   );
   underStairGlow.rotation.x = -Math.PI / 2;
-  underStairGlow.position.set(38.1, 0.045, 7.8);
+  underStairGlow.position.set(lowerX, 0.045, 14.6);
   roomGroup.add(underStairGlow);
 
   for (const x of [-20, 0, 20]) {
@@ -1329,7 +1420,7 @@ function buildCustomRoom() {
   addSpot(16.8, 9.0, 8.9, 0xffa066, 1.35, 20, Math.PI/5, 2.9);
   addSpot(-15.6, 8.8, -7.3, 0xe8b96a, 1.6, 20, Math.PI/6, 2.1);
   addSpot(-16.7, 7.8, 11.9, 0x7adf9a, 1.2, 14, Math.PI/6, 1.6);
-  addSpot(38.1, 11.8, 10.0, 0xffb45f, 1.35, 22, Math.PI/5, 3.4);
+  addSpot(38.1, 11.8, 14.0, 0xffb45f, 1.35, 22, Math.PI/5, 3.4);
   addSpot(24.0, 13.2, -7.5, 0x9b62ff, 1.25, 24, Math.PI/5, LOFT_H + 0.5);
   addSpot(0.0, 13.5, 24.0, 0xe8b96a, 1.35, 30, Math.PI/6, 5.2);
 
