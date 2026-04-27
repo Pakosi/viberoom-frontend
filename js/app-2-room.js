@@ -36,9 +36,13 @@ let tvCreated = false;
 let tvStartedByUser = false;
 let wallMaterials = [];
 let floorMaterials = [];
+let loftFloorMaterials = [];
+let zoneFloorMaterials = [];
 let mediaFrameMaterials = [];
 let vibeStripMaterials = [];
 let vibeGlowMaterials = [];
+let glassAccentMaterials = [];
+let metalAccentMaterials = [];
 let tvOverlay = null;
 let tvIframe = null;
 let tvAudioJoin = null;
@@ -347,36 +351,60 @@ function sendRoomStatePatch(patch) {
 function isHostUser() {
   return !!(player && player.name && player.name.toLowerCase() === 'pax');
 }
+function applyFloorStyle(materials, style, tint=0xffffff) {
+  const finalStyle = style || 'blackMarble';
+  let map;
+  let roughness = MOBILE ? 0.26 : 0.16;
+  let metalness = MOBILE ? 0.22 : 0.38;
+  if (finalStyle === 'whiteMarble') {
+    map = makeMarbleTexture('#f6f7fb', 'rgba(110,130,150,0.08)', 'rgba(255,255,255,0.32)', 'rgba(100,120,140,0.075)', 'rgba(255,255,255,0.045)');
+    roughness = MOBILE ? 0.24 : 0.14;
+    metalness = MOBILE ? 0.18 : 0.3;
+  } else if (finalStyle === 'darkWood') {
+    map = makeWoodTexture('#4a2f20', '#d0a15a');
+    roughness = 0.42;
+    metalness = 0.12;
+  } else {
+    map = makeMarbleTexture('#030405', 'rgba(255,255,255,0.08)', 'rgba(232,185,106,0.16)', 'rgba(232,185,106,0.055)', 'rgba(232,185,106,0.035)');
+  }
+  for (const m of materials) {
+    m.map = map;
+    m.color.setHex(tint);
+    if ('roughness' in m) m.roughness = roughness;
+    if ('metalness' in m) m.metalness = metalness;
+    m.needsUpdate = true;
+  }
+}
 function applyVibe(mode) {
   activeVibe = mode;
   const vibes = {
     chill: {
       wallStyle:'brick_chill', wallColor:0xeaf4ff, floorBase:'#eef6ff', veinA:'rgba(80,150,220,0.10)', veinB:'rgba(255,255,255,0.18)', grid:'rgba(80,120,180,0.07)', gloss:'rgba(255,255,255,0.04)',
-      bg:0x0b1522, fog:MOBILE ? 0.0020 : 0.0031, expo:MOBILE ? 1.86 : 2.05, keyColor:0xeaf6ff, purple:0x76bfff, gold:0xcfe8ff, stripA:0xbfe8ff, stripB:0x7bbcff, sculptureEmissive:0x16446a, mediaFrameColor:0x26384a, floorTint:0xf4fbff
+      bg:0x0b1522, fog:MOBILE ? 0.0020 : 0.0031, expo:MOBILE ? 1.86 : 2.05, keyColor:0xeaf6ff, purple:0x76bfff, gold:0xcfe8ff, stripA:0xbfe8ff, stripB:0x7bbcff, sculptureEmissive:0x16446a, mediaFrameColor:0x26384a, floorTint:0xf4fbff, floorStyle:'whiteMarble', loftFloorStyle:'darkWood', zoneTint:0xdff2ff
     },
     war: {
       wallStyle:'concrete_war', wallColor:0xd9dde2, floorBase:'#1a1d21', veinA:'rgba(240,240,240,0.05)', veinB:'rgba(120,255,160,0.06)', grid:'rgba(255,255,255,0.025)', gloss:'rgba(255,255,255,0.012)',
-      bg:0x0b1117, fog:MOBILE ? 0.0028 : 0.0041, expo:MOBILE ? 1.64 : 1.82, keyColor:0xe7f4d6, purple:0x2cb35f, gold:0xa9ff87, stripA:0xb7ff80, stripB:0x4cff9d, sculptureEmissive:0x123d12, mediaFrameColor:0x2b3a31, floorTint:0xe7f0ea
+      bg:0x0b1117, fog:MOBILE ? 0.0028 : 0.0041, expo:MOBILE ? 1.64 : 1.82, keyColor:0xe7f4d6, purple:0x2cb35f, gold:0xa9ff87, stripA:0xb7ff80, stripB:0x4cff9d, sculptureEmissive:0x123d12, mediaFrameColor:0x2b3a31, floorTint:0xe7f0ea, floorStyle:'darkWood', loftFloorStyle:'blackMarble', zoneTint:0xe7f0ea
     },
     after: {
       wallStyle:'brick_after', wallColor:0xf3e0ff, floorBase:'#16081e', veinA:'rgba(255,150,255,0.12)', veinB:'rgba(100,190,255,0.12)', grid:'rgba(255,255,255,0.025)', gloss:'rgba(255,80,220,0.035)',
-      bg:0x180910, fog:MOBILE ? 0.0017 : 0.0028, expo:MOBILE ? 1.92 : 2.14, keyColor:0xffe9da, purple:0xb84cff, gold:0xff7b5d, stripA:0xff4fd8, stripB:0x7f5cff, sculptureEmissive:0x5a1430, mediaFrameColor:0x3a2330, floorTint:0xfff2f8
+      bg:0x180910, fog:MOBILE ? 0.0017 : 0.0028, expo:MOBILE ? 1.92 : 2.14, keyColor:0xffe9da, purple:0xb84cff, gold:0xff7b5d, stripA:0xff4fd8, stripB:0x7f5cff, sculptureEmissive:0x5a1430, mediaFrameColor:0x3a2330, floorTint:0xfff2f8, floorStyle:'blackMarble', loftFloorStyle:'darkWood', zoneTint:0xffd5ff
     },
     game: {
       wallStyle:'panel_game', wallColor:0xe8f0ff, floorBase:'#0a1018', veinA:'rgba(120,220,255,0.10)', veinB:'rgba(255,220,80,0.10)', grid:'rgba(255,255,255,0.03)', gloss:'rgba(255,255,255,0.018)',
-      bg:0x0b1118, fog:MOBILE ? 0.0019 : 0.0030, expo:MOBILE ? 1.88 : 2.1, keyColor:0xf8f2df, purple:0x2f78ff, gold:0xffcc42, stripA:0xffcf56, stripB:0x46a2ff, sculptureEmissive:0x4d2b00, mediaFrameColor:0x203247, floorTint:0xf7fbff
+      bg:0x0b1118, fog:MOBILE ? 0.0019 : 0.0030, expo:MOBILE ? 1.88 : 2.1, keyColor:0xf8f2df, purple:0x2f78ff, gold:0xffcc42, stripA:0xffcf56, stripB:0x46a2ff, sculptureEmissive:0x4d2b00, mediaFrameColor:0x203247, floorTint:0xf7fbff, floorStyle:'darkWood', loftFloorStyle:'blackMarble', zoneTint:0xe8f0ff
     },
     luxe: {
       wallStyle:'brick_chill', wallColor:0xf4e5c0, floorBase:'#030405', veinA:'rgba(255,255,255,0.08)', veinB:'rgba(232,185,106,0.18)', grid:'rgba(232,185,106,0.06)', gloss:'rgba(232,185,106,0.035)',
-      bg:0x07080b, fog:MOBILE ? 0.0018 : 0.0028, expo:MOBILE ? 1.78 : 2.0, keyColor:0xfff1c8, purple:0x5541c9, gold:0xffc96b, stripA:0xffd27a, stripB:0xffffff, sculptureEmissive:0x6a3b00, mediaFrameColor:0x17130c, floorTint:0xfff5dc
+      bg:0x07080b, fog:MOBILE ? 0.0018 : 0.0028, expo:MOBILE ? 1.78 : 2.0, keyColor:0xfff1c8, purple:0x5541c9, gold:0xffc96b, stripA:0xffd27a, stripB:0xffffff, sculptureEmissive:0x6a3b00, mediaFrameColor:0x17130c, floorTint:0xfff5dc, floorStyle:'blackMarble', loftFloorStyle:'darkWood', zoneTint:0xfff5dc
     },
     clean: {
       wallStyle:'panel_game', wallColor:0xffffff, floorBase:'#f7f8fb', veinA:'rgba(130,150,170,0.08)', veinB:'rgba(255,255,255,0.28)', grid:'rgba(120,140,160,0.08)', gloss:'rgba(255,255,255,0.04)',
-      bg:0xdce8f3, fog:MOBILE ? 0.0012 : 0.0019, expo:MOBILE ? 2.02 : 2.22, keyColor:0xffffff, purple:0xa8d8ff, gold:0xf1dca8, stripA:0xe8f4ff, stripB:0xb7d7ff, sculptureEmissive:0x6b7d8f, mediaFrameColor:0xe9edf2, floorTint:0xffffff
+      bg:0xdce8f3, fog:MOBILE ? 0.0012 : 0.0019, expo:MOBILE ? 2.02 : 2.22, keyColor:0xffffff, purple:0xa8d8ff, gold:0xf1dca8, stripA:0xe8f4ff, stripB:0xb7d7ff, sculptureEmissive:0x6b7d8f, mediaFrameColor:0xe9edf2, floorTint:0xffffff, floorStyle:'whiteMarble', loftFloorStyle:'whiteMarble', zoneTint:0xffffff
     },
     dark: {
       wallStyle:'brick_after', wallColor:0x3b1418, floorBase:'#040303', veinA:'rgba(255,40,60,0.11)', veinB:'rgba(80,0,0,0.18)', grid:'rgba(255,255,255,0.012)', gloss:'rgba(255,0,40,0.025)',
-      bg:0x050304, fog:MOBILE ? 0.0027 : 0.0040, expo:MOBILE ? 1.52 : 1.72, keyColor:0xffd1c8, purple:0x9a111e, gold:0xff384d, stripA:0xff263d, stripB:0x5c0009, sculptureEmissive:0x5f0008, mediaFrameColor:0x1b080b, floorTint:0xffecec
+      bg:0x050304, fog:MOBILE ? 0.0027 : 0.0040, expo:MOBILE ? 1.52 : 1.72, keyColor:0xffd1c8, purple:0x9a111e, gold:0xff384d, stripA:0xff263d, stripB:0x5c0009, sculptureEmissive:0x5f0008, mediaFrameColor:0x1b080b, floorTint:0xffecec, floorStyle:'blackMarble', loftFloorStyle:'blackMarble', zoneTint:0xffd5d5
     }
   };
   const vibe = vibes[mode] || vibes.chill;
@@ -396,15 +424,24 @@ function applyVibe(mode) {
     m.needsUpdate = true;
   }
 
-  marbleTex = makeMarbleTexture(vibe.floorBase, vibe.veinA, vibe.veinB, vibe.grid, vibe.gloss);
-  for (const m of floorMaterials) {
-    m.map = marbleTex;
-    m.color.setHex(vibe.floorTint);
+  applyFloorStyle(floorMaterials, vibe.floorStyle, vibe.floorTint);
+  applyFloorStyle(loftFloorMaterials, vibe.loftFloorStyle, vibe.floorTint);
+  for (const m of zoneFloorMaterials) {
+    m.color.setHex(vibe.zoneTint || vibe.floorTint);
     m.needsUpdate = true;
   }
 
   for (const m of mediaFrameMaterials) {
     m.color.setHex(vibe.mediaFrameColor);
+    m.needsUpdate = true;
+  }
+  for (const m of glassAccentMaterials) {
+    m.color.setHex(vibe.stripB);
+    m.opacity = activeVibe === 'dark' ? 0.2 : 0.28;
+    m.needsUpdate = true;
+  }
+  for (const m of metalAccentMaterials) {
+    m.color.setHex(vibe.stripA);
     m.needsUpdate = true;
   }
 
@@ -591,8 +628,8 @@ function buildCustomRoom() {
 
   floorMat = new THREE.MeshStandardMaterial({
       map: marbleTex,
-      roughness: MOBILE ? 0.24 : 0.16,
-      metalness: MOBILE ? 0.28 : 0.42,
+      roughness: MOBILE ? 0.22 : 0.13,
+      metalness: MOBILE ? 0.3 : 0.46,
       color: 0xffffff
     });
   floorMaterials.push(floorMat);
@@ -603,6 +640,28 @@ function buildCustomRoom() {
   floor.rotation.x = -Math.PI/2;
   floor.receiveShadow = true;
   roomGroup.add(floor);
+
+  const zoneMat = new THREE.MeshStandardMaterial({
+    color: 0xfff5dc,
+    roughness: 0.48,
+    metalness: 0.08,
+    transparent: true,
+    opacity: 0.11
+  });
+  zoneFloorMaterials.push(zoneMat);
+  const mediaZone = new THREE.Mesh(new THREE.PlaneGeometry(26, 12), zoneMat);
+  mediaZone.rotation.x = -Math.PI/2;
+  mediaZone.position.set(0, 0.041, 21.5);
+  roomGroup.add(mediaZone);
+  const loungeZoneMat = zoneMat.clone();
+  zoneFloorMaterials.push(loungeZoneMat);
+  const loungeZone = new THREE.Mesh(new THREE.PlaneGeometry(22, 14), loungeZoneMat);
+  loungeZone.rotation.x = -Math.PI/2;
+  loungeZone.position.set(-11.5, 0.042, 7.2);
+  roomGroup.add(loungeZone);
+  const loftZoneMat = zoneMat.clone();
+  loftZoneMat.opacity = 0.16;
+  zoneFloorMaterials.push(loftZoneMat);
 
   const entryGlow = new THREE.Mesh(
     new THREE.PlaneGeometry(18, 8),
@@ -622,7 +681,7 @@ function buildCustomRoom() {
 
   const loungeRug = new THREE.Mesh(
     new THREE.PlaneGeometry(11.5, 7.5),
-    new THREE.MeshBasicMaterial({ map: makeRugTexture('#e8b96a', '#171116'), transparent: true, opacity: 0.72 })
+    new THREE.MeshStandardMaterial({ map: makeRugTexture('#e8b96a', '#171116'), transparent: true, opacity: 0.72, roughness: 0.68, metalness: 0.03 })
   );
   loungeRug.rotation.x = -Math.PI/2;
   loungeRug.position.set(-11.3, 0.035, 8.1);
@@ -630,7 +689,7 @@ function buildCustomRoom() {
 
   const commandRug = new THREE.Mesh(
     new THREE.PlaneGeometry(10.6, 6.2),
-    new THREE.MeshBasicMaterial({ map: makeRugTexture('#7adf9a', '#08120f'), transparent: true, opacity: 0.56 })
+    new THREE.MeshStandardMaterial({ map: makeRugTexture('#7adf9a', '#08120f'), transparent: true, opacity: 0.56, roughness: 0.7, metalness: 0.02 })
   );
   commandRug.rotation.x = -Math.PI/2;
   commandRug.position.set(6.4, 0.036, 5.0);
@@ -643,6 +702,17 @@ function buildCustomRoom() {
   ceiling.position.set(0, WALL_H + 0.25, 0);
   ceiling.receiveShadow = true;
   roomGroup.add(ceiling);
+  for (let z = -24; z <= 24; z += 8) {
+    const beam = box(ROOM_W - 4, 0.34, 0.28, 0x11151d, 0.62, 0.22);
+    beam.position.set(0, WALL_H - 0.15, z);
+    roomGroup.add(beam);
+  }
+  for (let x = -36; x <= 36; x += 12) {
+    const recessed = box(0.18, 0.06, ROOM_D - 7, 0x202633, 0.36, 0.42);
+    recessed.position.set(x, WALL_H - 0.37, 0);
+    vibeStripMaterials.push(recessed.material);
+    roomGroup.add(recessed);
+  }
 
   const leftWallMat = new THREE.MeshStandardMaterial({ map: wallTex, color: 0xe8e0d8, roughness: 0.82, metalness: 0.04 });
   wallMaterials.push(leftWallMat);
@@ -692,6 +762,19 @@ function buildCustomRoom() {
     rightPanel.position.x = HALF_W - 0.32;
     roomGroup.add(rightPanel);
   }
+  for (let x = -40; x <= 40; x += 5) {
+    const backTrim = box(0.08, WALL_H - 2.6, 0.12, 0x272f3b, 0.64, 0.16);
+    backTrim.position.set(x, WALL_H / 2 + 0.6, HALF_D - 0.52);
+    roomGroup.add(backTrim);
+  }
+  for (let z = -25; z <= 25; z += 5) {
+    const sideTrimL = box(0.12, WALL_H - 2.6, 0.08, 0x272f3b, 0.64, 0.16);
+    sideTrimL.position.set(-HALF_W + 0.52, WALL_H / 2 + 0.6, z);
+    roomGroup.add(sideTrimL);
+    const sideTrimR = sideTrimL.clone();
+    sideTrimR.position.x = HALF_W - 0.52;
+    roomGroup.add(sideTrimR);
+  }
 
   // front skyline window wall
   const windowFrameTop = box(ROOM_W, 0.45, 0.45, 0x12161f, 0.7, 0.2);
@@ -736,12 +819,16 @@ function buildCustomRoom() {
   }
 
   // duplex loft and overlook
-  const loftMat = new THREE.MeshStandardMaterial({ map: marbleTex, color: 0xffffff, roughness: 0.2, metalness: 0.34 });
-  floorMaterials.push(loftMat);
+  const loftMat = new THREE.MeshStandardMaterial({ map: makeWoodTexture('#4a2f20', '#d0a15a'), color: 0xffffff, roughness: 0.42, metalness: 0.12 });
+  loftFloorMaterials.push(loftMat);
   const loftFloor = new THREE.Mesh(new THREE.BoxGeometry(25, 0.36, 42), loftMat);
   loftFloor.position.set(30, LOFT_H, -3.5);
   loftFloor.receiveShadow = true;
   roomGroup.add(loftFloor);
+  const loftFloorMarker = new THREE.Mesh(new THREE.PlaneGeometry(18, 28), loftZoneMat);
+  loftFloorMarker.rotation.x = -Math.PI / 2;
+  loftFloorMarker.position.set(30, LOFT_H + 0.205, -3.5);
+  roomGroup.add(loftFloorMarker);
 
   const loftFascia = box(25.4, 0.34, 0.16, 0xd3a24f, 0.22, 0.76);
   loftFascia.position.set(30, LOFT_H - 0.16, 17.65);
@@ -755,6 +842,7 @@ function buildCustomRoom() {
   roomGroup.add(loftFeatureWall);
 
   const railMat = new THREE.MeshStandardMaterial({ color: 0xbdd8ff, transparent: true, opacity: 0.28, roughness: 0.08, metalness: 0.12 });
+  glassAccentMaterials.push(railMat);
   for (let z = -21; z <= 14; z += 4.5) {
     const glassPanel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.15, 3.2), railMat);
     glassPanel.position.set(17.6, LOFT_H + 0.75, z);
@@ -764,6 +852,7 @@ function buildCustomRoom() {
   const railTop = box(0.16, 0.12, 38.5, 0xd3a24f, 0.2, 0.82);
   railTop.position.set(17.5, LOFT_H + 1.42, -2.8);
   vibeStripMaterials.push(railTop.material);
+  metalAccentMaterials.push(railTop.material);
   roomGroup.add(railTop);
   for (let z = -21.5; z <= 16.5; z += 4.0) {
     const post = cyl(0.055, 0.075, 1.45, 0x161a22, 8, 0.32, 0.75);
@@ -796,6 +885,7 @@ function buildCustomRoom() {
     stairRail.rotation.x = Math.PI / 2 - Math.atan(LOFT_H / 14.4);
     stairRail.position.set(x, LOFT_H / 2 + 1.05, 7.2);
     vibeStripMaterials.push(stairRail.material);
+    metalAccentMaterials.push(stairRail.material);
     stairGroup.add(stairRail);
   }
   const underStairGlow = new THREE.Mesh(
@@ -1259,6 +1349,9 @@ function buildCustomRoom() {
   addSpot(15.6, 8.8, 10.6, 0xff8b55, 1.25, 18, Math.PI/6, 2.8);
   addSpot(-15.6, 8.8, -7.3, 0xe8b96a, 1.6, 20, Math.PI/6, 2.1);
   addSpot(-16.7, 7.8, 11.9, 0x7adf9a, 1.2, 14, Math.PI/6, 1.6);
+  addSpot(34.0, 11.8, 10.0, 0xffb45f, 1.45, 24, Math.PI/5, 3.4);
+  addSpot(24.0, 13.2, -7.5, 0x9b62ff, 1.25, 24, Math.PI/5, LOFT_H + 0.5);
+  addSpot(0.0, 13.5, 24.0, 0xe8b96a, 1.35, 30, Math.PI/6, 5.2);
 
   // blockers
   BLOCKERS.push(

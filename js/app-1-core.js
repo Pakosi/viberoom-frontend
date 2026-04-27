@@ -547,9 +547,9 @@ const basketFloorTex = makeBasketballTexture();
 let snakePreviewTex = makeSnakeScreenTexture();
 
 // ==================== LIGHTING ====================
-scene.add(new THREE.AmbientLight(0xffffff, MOBILE ? 0.95 : 0.82));
+scene.add(new THREE.AmbientLight(0xffffff, MOBILE ? 0.82 : 0.68));
 
-const hemi = new THREE.HemisphereLight(0xa7b7ff, 0x2b1c18, MOBILE ? 0.95 : 0.8);
+const hemi = new THREE.HemisphereLight(0xa7b7ff, 0x2b1c18, MOBILE ? 0.86 : 0.68);
 scene.add(hemi);
 
 const key = new THREE.DirectionalLight(0xfff4d8, MOBILE ? 1.45 : 1.35);
