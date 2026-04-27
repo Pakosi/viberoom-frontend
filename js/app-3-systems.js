@@ -304,6 +304,7 @@ let viewMode = 'third';
 document.addEventListener('keydown', e => {
   keys[e.key.toLowerCase()] = true;
   if (e.key === 'Escape') closeAllPanels();
+  if (e.target.tagName === 'INPUT') return;
   if (anyPanelOpen()) return;
   if (e.key.toLowerCase() === 't') { e.preventDefault(); openPanel('chat-panel'); setTimeout(()=>document.getElementById('chat-input').focus(),50); }
   if (e.key.toLowerCase() === 'e') { e.preventDefault(); tryInteract(); }
@@ -312,7 +313,8 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     if (player.onGround) { player.vel.y = 7; player.onGround = false; }
   }
-  if (e.key.toLowerCase() === 'v') toggleView();
+  if (e.key.toLowerCase() === 'c') toggleView();
+  if (e.key.toLowerCase() === 'v') joinTVAudioAnywhere();
 });
 document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
@@ -421,19 +423,36 @@ document.getElementById('host-load-media').addEventListener('click', () => {
     document.getElementById('host-info').textContent = 'Invalid YouTube URL or video ID.';
     return;
   }
-  const media = { videoId, playing:true, startAt:0, startedAt: Date.now() };
-  hostState.media = media;
+  setSharedMediaState(makeMediaState(videoId, true, 0));
   startTVPlayback(true);
-  sendRoomStatePatch({ vibe: hostState.vibe, media });
   document.getElementById('host-info').textContent = 'Wall TV synced.';
   drawMediaScreen();
 });
+document.getElementById('host-play-media').addEventListener('click', () => {
+  if (!isHostUser() || !hostState.media.videoId) return;
+  setSharedMediaState(makeMediaState(hostState.media.videoId, true, mediaNow()));
+  document.getElementById('host-info').textContent = 'Wall TV playing.';
+});
+document.getElementById('host-pause-media').addEventListener('click', () => {
+  if (!isHostUser() || !hostState.media.videoId) return;
+  setSharedMediaState(makeMediaState(hostState.media.videoId, false, mediaNow()));
+  document.getElementById('host-info').textContent = 'Wall TV paused.';
+});
+document.getElementById('host-seek-media').addEventListener('click', () => {
+  if (!isHostUser() || !hostState.media.videoId) return;
+  const seconds = Math.max(0, +(document.getElementById('host-media-seek').value || 0));
+  setSharedMediaState(makeMediaState(hostState.media.videoId, hostState.media.playing, seconds));
+  document.getElementById('host-info').textContent = 'Wall TV seek synced.';
+});
 document.getElementById('host-stop-media').addEventListener('click', () => {
   if (!isHostUser()) return;
-  const media = { videoId:'', playing:false, startAt:0, startedAt:0 };
-  applyRoomState({ media });
-  sendRoomStatePatch({ vibe: hostState.vibe, media });
+  setSharedMediaState(makeMediaState('', false, 0));
 });
+document.getElementById('tv-audio-join').addEventListener('click', joinTVAudioAnywhere);
+document.getElementById('btn-music').addEventListener('touchstart', e => {
+  e.preventDefault();
+  joinTVAudioAnywhere();
+}, { passive:false });
 document.getElementById('host-money-rain').addEventListener('click', () => {
   if (!isHostUser()) return;
   const evt = { kind:'money' };

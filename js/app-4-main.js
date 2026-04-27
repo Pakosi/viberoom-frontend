@@ -834,6 +834,7 @@ function updateRoomFx(t, dt) {
   }
 
   placeTVOverlay();
+  maintainMediaSync(t);
 }
 
 // ==================== LOOP ====================

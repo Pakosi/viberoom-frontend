@@ -16,7 +16,7 @@ let tableInteractAnchor = new THREE.Vector3(0,0,0);
 const HOST_PREFIX = '__HOST__';
 const hostState = {
   vibe: 'chill',
-  media: { videoId: '', playing: false, startAt: 0, startedAt: 0 },
+  media: { videoId: '', playing: false, startAt: 0, startedAt: 0, updatedAt: 0 },
   event: null
 };
 let hostConsoleGroup = null;
@@ -40,8 +40,22 @@ let vibeGlowMaterials = [];
 let tvOverlay = null;
 let tvIframe = null;
 let tvAudioJoin = null;
+let mediaControls = null;
+let mediaVolumeEl = null;
+let mediaMuteBtn = null;
+let tvIframeVideoId = '';
+let tvLastRect = '';
+let tvLocalBase = 0;
+let tvLocalBaseAt = 0;
+let tvLastDriftCheck = 0;
+let tvStartedAtWall = 0;
 let floorMat = null;
 let mediaFrameMat = null;
+
+const MEDIA_VOLUME_KEY = 'viberoom.mediaVolume';
+const MEDIA_MUTED_KEY = 'viberoom.mediaMuted';
+let mediaVolume = Math.max(0, Math.min(100, +(localStorage.getItem(MEDIA_VOLUME_KEY) || 70)));
+let mediaMuted = localStorage.getItem(MEDIA_MUTED_KEY) === '1';
 
 
 function ytIdFrom(input) {
@@ -102,21 +116,86 @@ function ensureTVDom() {
   tvOverlay = document.getElementById('tv-overlay');
   tvIframe = document.getElementById('tv-iframe');
   tvAudioJoin = document.getElementById('tv-audio-join');
-  if (!tvOverlay || !tvIframe || !tvAudioJoin) return;
+  mediaControls = document.getElementById('media-controls');
+  mediaVolumeEl = document.getElementById('media-volume');
+  mediaMuteBtn = document.getElementById('media-mute');
+  if (!tvOverlay || !tvIframe || !tvAudioJoin || !mediaControls || !mediaVolumeEl || !mediaMuteBtn) return;
+  mediaVolumeEl.value = String(mediaVolume);
+  mediaMuteBtn.textContent = mediaMuted ? 'UNMUTE' : 'MUTE';
+  mediaVolumeEl.addEventListener('input', () => {
+    mediaVolume = Math.max(0, Math.min(100, +mediaVolumeEl.value || 0));
+    mediaMuted = mediaVolume <= 0 ? true : false;
+    localStorage.setItem(MEDIA_VOLUME_KEY, String(mediaVolume));
+    localStorage.setItem(MEDIA_MUTED_KEY, mediaMuted ? '1' : '0');
+    applyLocalMediaVolume();
+  });
+  mediaMuteBtn.addEventListener('click', () => {
+    mediaMuted = !mediaMuted;
+    localStorage.setItem(MEDIA_MUTED_KEY, mediaMuted ? '1' : '0');
+    applyLocalMediaVolume();
+  });
   tvCreated = true;
+}
+function mediaNow(media=hostState.media, now=Date.now()) {
+  if (!media || !media.videoId) return 0;
+  const base = +media.startAt || 0;
+  return media.playing ? Math.max(0, base + (now - (+media.startedAt || now)) / 1000) : Math.max(0, base);
+}
+function normalizeMedia(data) {
+  return {
+    videoId: data && data.videoId ? String(data.videoId) : '',
+    playing: !!(data && data.playing),
+    startAt: Math.max(0, +(data && data.startAt) || 0),
+    startedAt: +(data && data.startedAt) || 0,
+    updatedAt: +(data && data.updatedAt) || Date.now()
+  };
+}
+function makeMediaState(videoId, playing, startAt=0) {
+  const now = Date.now();
+  return {
+    videoId: videoId || '',
+    playing: !!playing && !!videoId,
+    startAt: Math.max(0, +startAt || 0),
+    startedAt: playing && videoId ? now : 0,
+    updatedAt: now
+  };
+}
+function ytCommand(func, args=[]) {
+  if (!tvIframe || !tvIframe.contentWindow || !tvIframe.src) return;
+  tvIframe.contentWindow.postMessage(JSON.stringify({ event:'command', func, args }), 'https://www.youtube.com');
+}
+function setTVLocalClock(seconds) {
+  tvLocalBase = Math.max(0, +seconds || 0);
+  tvLocalBaseAt = Date.now();
+}
+function getTVLocalTime() {
+  return hostState.media.playing ? tvLocalBase + (Date.now() - tvLocalBaseAt) / 1000 : tvLocalBase;
+}
+function applyLocalMediaVolume() {
+  ensureTVDom();
+  if (!tvCreated) return;
+  mediaMuted = mediaMuted || mediaVolume <= 0;
+  mediaMuteBtn.textContent = mediaMuted ? 'UNMUTE' : 'MUTE';
+  if (mediaMuted) ytCommand('mute');
+  else ytCommand('unMute');
+  ytCommand('setVolume', [mediaMuted ? 0 : mediaVolume]);
+}
+function buildYouTubeSrc(videoId, start, withAudio) {
+  const muteFlag = (withAudio && !mediaMuted && mediaVolume > 0) ? 0 : 1;
+  const origin = encodeURIComponent(location.origin || 'null');
+  const autoplay = hostState.media.playing ? 1 : 0;
+  return `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=${origin}&autoplay=${autoplay}&playsinline=1&controls=0&rel=0&modestbranding=1&start=${Math.floor(start)}&mute=${muteFlag}`;
 }
 function placeTVOverlay() {
   if (!tvCreated || !mediaScreenMesh || !hostState.media.videoId) return;
 
   const camPos = camera.getWorldPosition(new THREE.Vector3());
   const screenPos = mediaScreenMesh.getWorldPosition(new THREE.Vector3());
-  const dist = camPos.distanceTo(screenPos);
-  if (dist < 7.5) { tvOverlay.style.display = 'none'; return; }
 
   const toCam = camPos.clone().sub(screenPos).normalize();
   const screenNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(mediaScreenMesh.getWorldQuaternion(new THREE.Quaternion()));
   const facing = screenNormal.dot(toCam);
-  if (facing < 0.45) { tvOverlay.style.display = 'none'; return; }
+  if (facing < 0.22) { tvOverlay.style.display = 'none'; return; }
 
   const corners = [
     new THREE.Vector3(-4.8,  2.55, 0),
@@ -126,12 +205,12 @@ function placeTVOverlay() {
   ];
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  let visible = false;
+  let visible = true;
 
   for (const c of corners) {
     const wp = mediaScreenMesh.localToWorld(c.clone());
     wp.project(camera);
-    if (wp.z > -1 && wp.z < 1) visible = true;
+    if (wp.z <= -1 || wp.z >= 1) visible = false;
     const sx = (wp.x * 0.5 + 0.5) * window.innerWidth;
     const sy = (-wp.y * 0.5 + 0.5) * window.innerHeight;
     minX = Math.min(minX, sx); maxX = Math.max(maxX, sx);
@@ -143,22 +222,21 @@ function placeTVOverlay() {
     return;
   }
 
-  let width = Math.max(180, maxX - minX - 4);
-  let height = Math.max(100, maxY - minY - 4);
+  const width = Math.max(120, maxX - minX - 4);
+  const height = Math.max(68, maxY - minY - 4);
+  if (width > window.innerWidth * 1.25 || height > window.innerHeight * 1.25) {
+    tvOverlay.style.display = 'none';
+    return;
+  }
 
-  const maxW = window.innerWidth * 0.38;
-  const maxH = window.innerHeight * 0.34;
-  const scale = Math.min(1, maxW / width, maxH / height);
-  width *= scale;
-  height *= scale;
-
-  const centerX = (minX + maxX) / 2;
-  const centerY = (minY + maxY) / 2;
-
-  tvOverlay.style.left = (centerX - width / 2) + 'px';
-  tvOverlay.style.top = (centerY - height / 2) + 'px';
-  tvOverlay.style.width = width + 'px';
-  tvOverlay.style.height = height + 'px';
+  const rect = `${Math.round(minX + 2)},${Math.round(minY + 2)},${Math.round(width)},${Math.round(height)}`;
+  if (rect !== tvLastRect) {
+    tvOverlay.style.left = (minX + 2) + 'px';
+    tvOverlay.style.top = (minY + 2) + 'px';
+    tvOverlay.style.width = width + 'px';
+    tvOverlay.style.height = height + 'px';
+    tvLastRect = rect;
+  }
   tvOverlay.style.display = 'block';
 }
 function syncTVPlayback() {
@@ -167,13 +245,18 @@ function syncTVPlayback() {
   if (!hostState.media.videoId) {
     tvOverlay.style.display = 'none';
     tvIframe.src = '';
+    tvIframeVideoId = '';
     tvAudioJoin.style.display = 'none';
+    mediaControls.style.display = 'none';
     tvStartedByUser = false;
+    tvLastRect = '';
     drawMediaScreen();
     return;
   }
   tvAudioJoin.style.display = tvStartedByUser ? 'none' : 'block';
+  mediaControls.style.display = 'flex';
   placeTVOverlay();
+  applyLocalMediaVolume();
   drawMediaScreen();
 }
 
@@ -182,19 +265,61 @@ function joinTVAudioAnywhere() {
     addChat('System', '*No TV audio to join right now*', '#e8b96a');
     return;
   }
+  if (mediaVolume <= 0) mediaVolume = 70;
+  mediaMuted = false;
+  localStorage.setItem(MEDIA_VOLUME_KEY, String(mediaVolume));
+  localStorage.setItem(MEDIA_MUTED_KEY, '0');
+  if (mediaVolumeEl) mediaVolumeEl.value = String(mediaVolume);
   startTVPlayback(true);
 }
 
 function startTVPlayback(withAudio=true) {
   ensureTVDom();
   if (!tvCreated || !hostState.media.videoId) return;
-  const elapsed = hostState.media.playing
-    ? Math.max(0, Math.floor((Date.now() - hostState.media.startedAt) / 1000) + Math.floor(hostState.media.startAt || 0))
-    : Math.floor(hostState.media.startAt || 0);
-  const muteFlag = withAudio ? 0 : 1;
-  tvIframe.src = `https://www.youtube.com/embed/${hostState.media.videoId}?autoplay=1&playsinline=1&controls=1&rel=0&modestbranding=1&start=${elapsed}&mute=${muteFlag}`;
-  tvStartedByUser = withAudio;
+  const elapsed = mediaNow();
+  const changedVideo = tvIframeVideoId !== hostState.media.videoId;
+  if (changedVideo || !tvIframe.src) {
+    tvIframe.src = buildYouTubeSrc(hostState.media.videoId, elapsed, withAudio);
+    tvIframeVideoId = hostState.media.videoId;
+    tvStartedAtWall = Date.now();
+    setTimeout(() => {
+      syncTVToRoom(true);
+      applyLocalMediaVolume();
+    }, 900);
+  } else {
+    syncTVToRoom(true);
+  }
+  tvStartedByUser = tvStartedByUser || withAudio;
   syncTVPlayback();
+}
+function syncTVToRoom(force=false) {
+  if (!tvCreated || !hostState.media.videoId || !tvIframe.src) return;
+  const target = mediaNow();
+  const local = getTVLocalTime();
+  const drift = Math.abs(target - local);
+  if (force || drift > (hostState.media.playing ? 2.25 : 0.75)) {
+    ytCommand('seekTo', [target, true]);
+    setTVLocalClock(target);
+  }
+  if (hostState.media.playing) {
+    ytCommand('playVideo');
+    if (tvLocalBaseAt === 0) setTVLocalClock(target);
+  } else {
+    ytCommand('pauseVideo');
+    setTVLocalClock(target);
+  }
+  applyLocalMediaVolume();
+}
+function maintainMediaSync(t) {
+  if (!tvCreated || !hostState.media.videoId || !tvIframe.src) return;
+  if (t - tvLastDriftCheck < 5) return;
+  tvLastDriftCheck = t;
+  if (Date.now() - tvStartedAtWall < 1800) return;
+  syncTVToRoom(false);
+}
+function setSharedMediaState(media) {
+  applyRoomState({ media });
+  sendRoomStatePatch({ vibe: hostState.vibe, media: hostState.media });
 }
 
 function broadcastHostEvent(evt) {
@@ -295,21 +420,23 @@ function applyRoomState(data) {
     applyVibe(data.vibe);
   }
   if (data.media) {
-    hostState.media = {
-      videoId: data.media.videoId || '',
-      playing: !!data.media.playing,
-      startAt: +data.media.startAt || 0,
-      startedAt: +data.media.startedAt || 0
-    };
+    const prevVideoId = hostState.media.videoId;
+    hostState.media = normalizeMedia(data.media);
     if (!hostState.media.videoId) {
       if (tvCreated) {
         tvIframe.src = '';
+        tvIframeVideoId = '';
         tvOverlay.style.display = 'none';
         tvAudioJoin.style.display = 'none';
+        mediaControls.style.display = 'none';
       }
       tvStartedByUser = false;
+      tvLocalBase = 0;
+      tvLocalBaseAt = 0;
     } else {
+      if (prevVideoId !== hostState.media.videoId) tvStartedByUser = false;
       startTVPlayback(false);
+      syncTVToRoom(true);
     }
     document.getElementById('host-info').textContent = hostState.media.videoId ? 'Wall TV synced.' : 'Wall TV stopped.';
     drawMediaScreen();

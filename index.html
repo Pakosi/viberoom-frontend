@@ -160,8 +160,14 @@
     </div>
     <input id="host-media-url" placeholder="Paste YouTube URL or video ID">
     <div class="host-row">
-      <button id="host-load-media" class="host-accent" style="flex:1;">LOAD WALL TV</button>
+      <button id="host-load-media" class="host-accent" style="flex:1;">LOAD + PLAY</button>
       <button id="host-stop-media" style="flex:1;">STOP TV</button>
+    </div>
+    <div class="host-row">
+      <button id="host-play-media" class="host-accent" style="flex:1;">PLAY</button>
+      <button id="host-pause-media" style="flex:1;">PAUSE</button>
+      <input id="host-media-seek" type="number" min="0" step="5" placeholder="SEC">
+      <button id="host-seek-media" style="flex:1;">SEEK</button>
     </div>
     <div class="host-row">
       <button id="host-money-rain" style="flex:1;">MONEY RAIN</button>
@@ -172,6 +178,10 @@
 
   <div id="tv-overlay"><iframe id="tv-iframe" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
   <button id="tv-audio-join">V / ♪ TV AUDIO</button>
+  <div id="media-controls">
+    <button id="media-mute">MUTE</button>
+    <input id="media-volume" type="range" min="0" max="100" value="70" aria-label="TV volume">
+  </div>
 
   <div id="mobile-ctrls">
     <div id="joystick"><div id="joy-knob"></div></div>
