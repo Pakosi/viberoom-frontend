@@ -762,12 +762,12 @@ function buildCustomRoom() {
     rightPanel.position.x = HALF_W - 0.32;
     roomGroup.add(rightPanel);
   }
-  for (let x = -40; x <= 40; x += 5) {
+  for (let x = -40; x <= 40; x += 10) {
     const backTrim = box(0.08, WALL_H - 2.6, 0.12, 0x272f3b, 0.64, 0.16);
     backTrim.position.set(x, WALL_H / 2 + 0.6, HALF_D - 0.52);
     roomGroup.add(backTrim);
   }
-  for (let z = -25; z <= 25; z += 5) {
+  for (let z = -25; z <= 25; z += 10) {
     const sideTrimL = box(0.12, WALL_H - 2.6, 0.08, 0x272f3b, 0.64, 0.16);
     sideTrimL.position.set(-HALF_W + 0.52, WALL_H / 2 + 0.6, z);
     roomGroup.add(sideTrimL);
@@ -861,10 +861,10 @@ function buildCustomRoom() {
   }
 
   const stairGroup = new THREE.Group();
-  stairGroup.position.set(34, 0, 2.6);
+  stairGroup.position.set(38.1, 0, 2.6);
   roomGroup.add(stairGroup);
   const ramp = new THREE.Mesh(
-    new THREE.BoxGeometry(8.2, 0.18, 15.0),
+    new THREE.BoxGeometry(5.4, 0.18, 15.0),
     new THREE.MeshStandardMaterial({ color: 0x151922, roughness: 0.34, metalness: 0.52 })
   );
   ramp.position.set(0, LOFT_H / 2, 7.2);
@@ -872,15 +872,15 @@ function buildCustomRoom() {
   ramp.receiveShadow = true;
   stairGroup.add(ramp);
   for (let i = 0; i < 16; i++) {
-    const step = box(8.4, 0.12, 0.75, 0x2b3039, 0.3, 0.54);
+    const step = box(5.6, 0.12, 0.75, 0x2b3039, 0.3, 0.54);
     step.position.set(0, 0.22 + i * (LOFT_H / 16), 0.45 + i * 0.9);
     stairGroup.add(step);
-    const lip = box(8.3, 0.035, 0.06, 0xe8b96a, 0.16, 0.72);
+    const lip = box(5.5, 0.035, 0.06, 0xe8b96a, 0.16, 0.72);
     lip.position.set(0, step.position.y + 0.08, step.position.z + 0.33);
     vibeGlowMaterials.push(lip.material);
     stairGroup.add(lip);
   }
-  for (const x of [-4.4, 4.4]) {
+  for (const x of [-2.9, 2.9]) {
     const stairRail = cyl(0.045, 0.06, 15.8, 0xd3a24f, 8, 0.2, 0.82);
     stairRail.rotation.x = Math.PI / 2 - Math.atan(LOFT_H / 14.4);
     stairRail.position.set(x, LOFT_H / 2 + 1.05, 7.2);
@@ -889,11 +889,11 @@ function buildCustomRoom() {
     stairGroup.add(stairRail);
   }
   const underStairGlow = new THREE.Mesh(
-    new THREE.PlaneGeometry(7.8, 8.0),
+    new THREE.PlaneGeometry(5.2, 8.0),
     new THREE.MeshBasicMaterial({ color: 0xffb45f, transparent: true, opacity: 0.18 })
   );
   underStairGlow.rotation.x = -Math.PI / 2;
-  underStairGlow.position.set(34, 0.045, 7.8);
+  underStairGlow.position.set(38.1, 0.045, 7.8);
   roomGroup.add(underStairGlow);
 
   for (const x of [-20, 0, 20]) {
@@ -909,7 +909,7 @@ function buildCustomRoom() {
   }
 
   // center sculpture
-  const ringGeo = new THREE.TorusGeometry(2.4, 0.22, 24, 96);
+  const ringGeo = new THREE.TorusGeometry(2.4, 0.22, 16, 64);
   const ringMat = new THREE.MeshStandardMaterial({ color: 0xd9ab5d, emissive: 0x4a2400, emissiveIntensity: 0.55, roughness: 0.18, metalness: 0.9 });
   centerSculpture = new THREE.Mesh(ringGeo, ringMat);
   centerSculpture.position.set(0, 4.2, -1.8);
@@ -917,7 +917,7 @@ function buildCustomRoom() {
   roomGroup.add(centerSculpture);
 
   const orb = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(1.05, 2),
+    new THREE.IcosahedronGeometry(1.05, 1),
     new THREE.MeshStandardMaterial({ color: 0xfff0c4, emissive: 0xffc86a, emissiveIntensity: 1.5, roughness: 0.15, metalness: 0.22 })
   );
   orb.position.set(0, 4.2, -1.8);
@@ -1295,30 +1295,11 @@ function buildCustomRoom() {
   moneySign.position.set(3.5, 2.4, 2.4);
   moneyGroup.add(moneySign);
 
-  // decorative pillars and trims
-  for (const x of [-8, 0, 8]) {
-    const trim = box(0.18, 10, 0.18, 0xd3a24f, 0.22, 0.82);
-    trim.position.set(x, 5, -14.9);
-    roomGroup.add(trim);
-  }
-
   // seating near gaming
   const gameSofa = makeLuxurySofa(4.4, 1.55, 0x1d2027, 0x6d78ff);
   gameSofa.position.set(12.6, 0.05, -0.8);
   gameSofa.rotation.y = 0.12;
   roomGroup.add(gameSofa);
-
-  // door wall fix
-  const accentDoorWall = box(4.5, 6.8, 0.2, 0x1e1712, 0.92, 0.05);
-  accentDoorWall.position.set(-19.5, 3.4, 14.73);
-  roomGroup.add(accentDoorWall);
-  const fakeDoor = box(1.4, 3.2, 0.12, 0x3a2b1d, 0.84, 0.08);
-  fakeDoor.position.set(-19.6, 1.8, 14.84);
-  roomGroup.add(fakeDoor);
-  const doorHandle = cyl(0.06, 0.06, 0.12, 0xd3a24f, 10, 0.25, 0.8);
-  doorHandle.rotation.x = Math.PI / 2;
-  doorHandle.position.set(-19.05, 1.82, 14.72);
-  roomGroup.add(doorHandle);
 
   // stools
   for (let i = 0; i < 4; i++) {
@@ -1345,11 +1326,10 @@ function buildCustomRoom() {
   // zone spotlights
   addSpot(12.5, 9.5, -13.2, 0xe8b96a, 1.7, 26, Math.PI/6, 3.6);
   addSpot(14.6, 9.0, -4.4, 0x6d78ff, 1.8, 22, Math.PI/6, 3.2);
-  addSpot(17.6, 8.8, 7.8, 0xe8b96a, 1.3, 18, Math.PI/6, 3.0);
-  addSpot(15.6, 8.8, 10.6, 0xff8b55, 1.25, 18, Math.PI/6, 2.8);
+  addSpot(16.8, 9.0, 8.9, 0xffa066, 1.35, 20, Math.PI/5, 2.9);
   addSpot(-15.6, 8.8, -7.3, 0xe8b96a, 1.6, 20, Math.PI/6, 2.1);
   addSpot(-16.7, 7.8, 11.9, 0x7adf9a, 1.2, 14, Math.PI/6, 1.6);
-  addSpot(34.0, 11.8, 10.0, 0xffb45f, 1.45, 24, Math.PI/5, 3.4);
+  addSpot(38.1, 11.8, 10.0, 0xffb45f, 1.35, 22, Math.PI/5, 3.4);
   addSpot(24.0, 13.2, -7.5, 0x9b62ff, 1.25, 24, Math.PI/5, LOFT_H + 0.5);
   addSpot(0.0, 13.5, 24.0, 0xe8b96a, 1.35, 30, Math.PI/6, 5.2);
 

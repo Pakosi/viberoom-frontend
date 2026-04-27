@@ -2,8 +2,9 @@
 const FLOOR_Y = 0;
 const BOUNDS = { minX: -42.2, maxX: 42.2, minZ: -28.6, maxZ: 28.6 };
 const LOFT_Y = 7.2;
-const LOFT_ZONE = { minX: 18.0, maxX: 41.0, minZ: -24.0, maxZ: 17.0 };
-const STAIR_ZONE = { minX: 28.5, maxX: 39.5, minZ: 2.5, maxZ: 17.0 };
+const LOFT_ZONE = { minX: 17.8, maxX: 41.4, minZ: -24.0, maxZ: 17.2 };
+const STAIR_ZONE = { minX: 35.0, maxX: 41.2, minZ: 2.6, maxZ: 17.0 };
+const LOFT_SNAP_TOLERANCE = 1.4;
 
 const INTERACTS = [
   { type: 'whiteboard', x: 12.5,  z: -11.7, r: 4.4, label: 'PRESENTATION WALL ✏️' },
@@ -576,11 +577,16 @@ function canStand(x, z) {
   for (const b of BLOCKERS) if (collideRectCircle(x, z, b, PLAYER_RADIUS)) return false;
   return true;
 }
-function groundAt(x, z) {
-  if (x >= STAIR_ZONE.minX && x <= STAIR_ZONE.maxX && z >= STAIR_ZONE.minZ && z <= STAIR_ZONE.maxZ) {
+
+function inWalkZone(x, z, zone) {
+  return x >= zone.minX && x <= zone.maxX && z >= zone.minZ && z <= zone.maxZ;
+}
+
+function groundAt(x, z, currentY = FLOOR_Y) {
+  if (inWalkZone(x, z, STAIR_ZONE)) {
     return FLOOR_Y + ((z - STAIR_ZONE.minZ) / (STAIR_ZONE.maxZ - STAIR_ZONE.minZ)) * LOFT_Y;
   }
-  if (x >= LOFT_ZONE.minX && x <= LOFT_ZONE.maxX && z >= LOFT_ZONE.minZ && z <= LOFT_ZONE.maxZ) {
+  if (inWalkZone(x, z, LOFT_ZONE) && currentY >= LOFT_Y - LOFT_SNAP_TOLERANCE) {
     return LOFT_Y;
   }
   return FLOOR_Y;
@@ -611,7 +617,7 @@ function updatePlayer(dt, t) {
   const tryZ = player.group.position.z + mz*dt;
   if (canStand(player.group.position.x, tryZ)) player.group.position.z = tryZ;
 
-  const groundY = groundAt(player.group.position.x, player.group.position.z);
+  const groundY = groundAt(player.group.position.x, player.group.position.z, player.group.position.y);
   if (ny <= groundY) {
     ny = groundY;
     player.vel.y = 0;
