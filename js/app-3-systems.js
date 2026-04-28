@@ -302,6 +302,19 @@ function chipFmt(v) {
   return String(Math.floor(Number(v) || 0));
 }
 
+function blackjackSecondsLeft() {
+  if (!blackjackState || !blackjackState.phaseEndsAt) return 0;
+  return Math.max(0, Math.ceil((blackjackState.phaseEndsAt - Date.now()) / 1000));
+}
+
+function blackjackPhaseLabel(me) {
+  const phase = blackjackState ? blackjackState.phase : '';
+  if (phase === 'player_turn' && me && blackjackState.turnSeat === me.seat) return 'YOUR TURN';
+  if (phase === 'player_turn') return 'PLAYER TURN';
+  if (phase === 'dealer_turn') return 'DEALER';
+  return String(phase || '—').toUpperCase();
+}
+
 function cardLabel(card) {
   if (!card) return '';
   if (card.hidden) return '◆';
@@ -358,8 +371,8 @@ function updateBlackjackSeatVisuals() {
     const marker = blackjackSeatMarkers[i];
     const occupant = blackjackState.seats && blackjackState.seats[i];
     if (!marker || !marker.material) continue;
-    marker.material.color.setHex(occupant === myId ? 0x7adf9a : (occupant ? 0xd05d5d : 0xe8b96a));
-    marker.material.opacity = occupant ? 0.9 : 0.62;
+    marker.material.color.setHex(blackjackState.turnSeat === i ? 0x7adf9a : (occupant === myId ? 0xe8b96a : (occupant ? 0xd05d5d : 0xe8b96a)));
+    marker.material.opacity = blackjackState.turnSeat === i ? 1 : (occupant ? 0.9 : 0.62);
   }
 }
 
@@ -463,33 +476,40 @@ function renderBlackjackPanel() {
   const el = document.getElementById('blackjack-panel');
   if (!blackjackState || !el) return;
   const me = myBlackjackPlayer();
-  document.getElementById('bj-phase').textContent = `PHASE: ${String(blackjackState.phase || '—').toUpperCase()}`;
+  const isTurn = me && me.seat !== null && blackjackState.turnSeat === me.seat && blackjackState.phase === 'player_turn';
+  const phaseLabel = blackjackPhaseLabel(me);
+  document.getElementById('bj-phase').textContent = `PHASE: ${phaseLabel}`;
   document.getElementById('bj-wallet').textContent = `WALLET: ${me ? chipFmt(me.wallet) : '—'}`;
-  document.getElementById('bj-message').textContent = blackjackState.message || '';
+  document.getElementById('bj-bet').textContent = `BET: ${me ? chipFmt(me.bet) : '—'}`;
+  document.getElementById('bj-timer').textContent = blackjackSecondsLeft() ? `TIMER: ${blackjackSecondsLeft()}S` : 'TIMER: —';
+  const msg = document.getElementById('bj-message');
+  msg.textContent = isTurn ? 'YOUR TURN: Hit, Stand, or Double if available.' : (blackjackState.message || '');
+  msg.className = 'bj-status' + (isTurn ? ' your-turn' : (blackjackState.phase === 'results' ? ' results' : ''));
   const seatsEl = document.getElementById('bj-seats');
   seatsEl.innerHTML = '';
   for (let i = 0; i < (blackjackState.seats || []).length; i++) {
     const id = blackjackState.seats[i];
     const p = id && blackjackState.players ? blackjackState.players[id] : null;
     const b = document.createElement('button');
-    b.textContent = p ? `SEAT ${i + 1}: ${p.name}${p.bet ? ' · BET ' + p.bet : ''}` : `SIT SEAT ${i + 1}`;
-    b.disabled = !!id && id !== myId;
-    b.className = id === myId ? 'mine' : (id ? 'occupied' : '');
+    const turn = blackjackState.turnSeat === i && blackjackState.phase === 'player_turn';
+    b.textContent = p ? `SEAT ${i + 1}: ${p.name}${turn ? ' · TURN' : ''}${p.bet ? ' · BET ' + p.bet : ''}` : `SIT SEAT ${i + 1}`;
+    b.disabled = (!!id && id !== myId) || (blackjackState.phase !== 'betting' && (!p || p.id !== myId));
+    b.className = (id === myId ? 'mine' : (id ? 'occupied' : '')) + (turn ? ' active' : '');
     b.onclick = () => wsSend({ type:'blackjack_sit', seat:i });
     seatsEl.appendChild(b);
   }
   const dealer = blackjackState.dealer || { hand: [] };
-  document.getElementById('bj-dealer').innerHTML = (dealer.hand || []).map(makeCardHtml).join('') + (dealer.total ? `<span class="mini-sub">TOTAL ${dealer.total}</span>` : '');
+  document.getElementById('bj-dealer').innerHTML = (dealer.hand || []).map(makeCardHtml).join('') + (dealer.total ? `<span class="mini-sub">VALUE ${dealer.totalLabel || dealer.total}</span>` : '');
   document.getElementById('bj-hand').innerHTML = me && me.hand && me.hand.length
-    ? me.hand.map(makeCardHtml).join('') + `<span class="mini-sub">TOTAL ${me.total || 0} · BET ${me.bet || 0}${me.result ? ' · ' + me.result : ''}</span>`
+    ? me.hand.map(makeCardHtml).join('') + `<span class="mini-sub">VALUE ${me.totalLabel || me.total || 0} · BET ${me.bet || 0}${me.result ? ' · ' + me.result : ''}</span>`
     : '<span class="mini-sub">Sit and bet to receive cards.</span>';
-  const isTurn = me && me.seat !== null && blackjackState.turnSeat === me.seat && blackjackState.phase === 'player_turn';
   document.getElementById('bj-hit').disabled = !isTurn;
   document.getElementById('bj-stand').disabled = !isTurn;
   document.getElementById('bj-double').disabled = !isTurn || !me || (me.hand || []).length !== 2 || me.wallet < me.bet;
+  document.getElementById('bj-leave').disabled = !me || me.seat === null || (blackjackState.phase !== 'betting' && me.bet > 0);
   document.querySelectorAll('[data-bj-bet]').forEach(btn => {
     const amount = Number(btn.dataset.bjBet);
-    btn.disabled = !me || me.seat === null || blackjackState.phase !== 'betting' || me.wallet < amount;
+    btn.disabled = !me || me.seat === null || blackjackState.phase !== 'betting' || me.wallet < amount || amount <= 0;
   });
 }
 

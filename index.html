@@ -134,9 +134,9 @@
     <div class="mini-sub">Play-money/social chips only. No cash-out, payments, crypto, or real financial value.</div>
     <div class="bj-section-title">WITHDRAW TO WALLET</div>
     <div class="bj-action-row">
-      <button data-safe-withdraw="100">100</button>
-      <button data-safe-withdraw="500">500</button>
-      <button data-safe-withdraw="1000">1000</button>
+      <button data-safe-withdraw="100">+100</button>
+      <button data-safe-withdraw="500">+500</button>
+      <button data-safe-withdraw="1000">+1000</button>
     </div>
     <div class="bj-section-title">DEPOSIT TO SAFE</div>
     <div class="bj-action-row">
@@ -153,6 +153,8 @@
     <div class="bj-topline">
       <span id="bj-phase">PHASE: —</span>
       <span id="bj-wallet">WALLET: —</span>
+      <span id="bj-bet">BET: —</span>
+      <span id="bj-timer">TIMER: —</span>
     </div>
     <div class="bj-status" id="bj-message">Waiting for table state...</div>
     <div class="bj-table-grid">
@@ -173,10 +175,10 @@
       <button data-bj-bet="500">BET 500</button>
     </div>
     <div class="bj-action-row">
-      <button id="bj-hit">HIT</button>
-      <button id="bj-stand">STAND</button>
-      <button id="bj-double">DOUBLE</button>
-      <button id="bj-leave">LEAVE SEAT</button>
+      <button id="bj-hit" disabled>HIT</button>
+      <button id="bj-stand" disabled>STAND</button>
+      <button id="bj-double" disabled>DOUBLE</button>
+      <button id="bj-leave" disabled>LEAVE SEAT</button>
     </div>
     <div class="mini-sub">Server-authoritative play-money blackjack. No split, insurance, surrender, real-money value, or cash-out.</div>
   </div>

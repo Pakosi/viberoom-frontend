@@ -872,6 +872,9 @@ function animate() {
   updatePlayer(dt, t);
   updateRemotes(dt);
   updateRoomFx(t, dt);
+  if (typeof renderBlackjackPanel === 'function' && typeof blackjackState !== 'undefined' && blackjackState && Math.floor(t * 2) !== Math.floor((t - dt) * 2)) {
+    renderBlackjackPanel();
+  }
   updateCamera();
   renderer.render(scene, camera);
   sampleGraphicsPerformance(dt);

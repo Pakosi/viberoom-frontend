@@ -107,6 +107,9 @@ canvas { display: block; }
 }
 .bj-seat-grid button.occupied { color:#d8c8a8; border-color:#4a3a28; background:#111; cursor:default; }
 .bj-seat-grid button.mine { color:#061109; background:#e8b96a; border-color:#ffe3a0; }
+.bj-seat-grid button.active { box-shadow:0 0 0 2px #7adf9a, 0 0 18px rgba(122,223,154,0.36); }
+.bj-status.your-turn { border-color:#7adf9a; color:#d6ffdf; box-shadow:0 0 18px rgba(122,223,154,0.2); }
+.bj-status.results { border-color:#e8b96a; color:#ffe2a0; }
 .bj-seat-grid button:disabled, .bj-bet-row button:disabled, .bj-action-row button:disabled { opacity:0.42; cursor:not-allowed; }
 .bj-hand { min-height:42px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .bj-card {
