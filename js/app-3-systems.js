@@ -297,6 +297,7 @@ function maybeBroadcastPos(t) {
 // ==================== BLACKJACK / SAFE ====================
 let blackjackState = null;
 let seatedBlackjackSeat = null;
+let lastBlackjackVisualSeq = 0;
 
 function chipFmt(v) {
   return String(Math.floor(Number(v) || 0));
@@ -340,6 +341,37 @@ function showBlackjackNotice(text) {
   const safeMsg = document.getElementById('safe-status');
   if (bjMsg) bjMsg.textContent = text;
   if (safeMsg) safeMsg.textContent = text;
+}
+
+function blackjackVisualText(visual) {
+  if (!visual) return '';
+  const labels = {
+    betting: 'BETTING',
+    betting_timer: 'BETS OPEN',
+    round_start: 'SHUFFLE UP',
+    deal_player: 'CARD DEALT',
+    deal_dealer_up: 'DEALER UP CARD',
+    deal_dealer_hole: 'HOLE CARD',
+    decision_start: 'PLAYERS ACT',
+    turn: 'TURN',
+    hit: 'HIT',
+    stand: 'STAND',
+    double: 'DOUBLE',
+    dealer_reveal: 'DEALER REVEALS',
+    dealer_hit: 'DEALER HITS',
+    dealer_stand: 'DEALER STANDS',
+    results: 'RESULTS',
+    bet: 'BET PLACED',
+    withdraw: 'CHIPS WITHDRAWN'
+  };
+  return labels[visual.kind] || '';
+}
+
+function handleBlackjackVisualCue(visual) {
+  if (!visual || visual.seq === lastBlackjackVisualSeq) return;
+  lastBlackjackVisualSeq = visual.seq;
+  const label = blackjackVisualText(visual);
+  if (label) console.debug('[blackjack visual]', label, visual);
 }
 
 function blackjackSeatWorld(seat) {
@@ -483,7 +515,7 @@ function renderBlackjackTable3D() {
   const me = myBlackjackPlayer();
   const tablePhase = blackjackPhaseLabel(me);
   const phaseColor = tablePhase === 'YOUR TURN' ? '#7adf9a' : (blackjackState.phase === 'results' ? '#f2d27a' : '#e8b96a');
-  addBjTableBadge(tablePhase, blackjackState.message || '', 0, 0.78, phaseColor, 2.35, 0.5);
+  addBjTableBadge(tablePhase, blackjackVisualText(blackjackState.visual) || blackjackState.message || '', 0, 0.78, phaseColor, 2.35, 0.5);
   const dealerHand = blackjackState.dealer && blackjackState.dealer.hand ? blackjackState.dealer.hand : [];
   const dealerStart = -((dealerHand.length - 1) * 0.34);
   dealerHand.forEach((card, i) => addBjCard(card, dealerStart + i * 0.68, -0.96 + i * 0.02, -0.08 + i * 0.035, 1.06));
@@ -528,6 +560,7 @@ function renderBlackjackTable3D() {
 
 function applyBlackjackState(data) {
   blackjackState = data;
+  handleBlackjackVisualCue(data.visual);
   const me = myBlackjackPlayer();
   seatedBlackjackSeat = me && me.seat !== null && me.seat !== undefined ? me.seat : null;
   if (seatedBlackjackSeat !== null) snapToBlackjackSeat(seatedBlackjackSeat);

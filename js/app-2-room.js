@@ -1601,6 +1601,40 @@ function buildCustomRoom() {
 
 const BLOCKERS = [];
 const PLAYER_RADIUS = 0.42;
+const roomPerfState = {
+  initialized: false,
+  lowDetail: [],
+  tinyShadowCasters: []
+};
+
+function prepareRoomPerformanceBudget() {
+  if (roomPerfState.initialized) return;
+  roomPerfState.initialized = true;
+  roomGroup.traverse(obj => {
+    if (!obj.isMesh) return;
+    const geo = obj.geometry;
+    if (!geo || !geo.parameters) return;
+    const p = geo.parameters;
+    const w = p.width || p.radiusTop || p.radius || p.outerRadius || 0;
+    const h = p.height || p.depth || p.tube || 0;
+    const d = p.depth || p.radiusBottom || p.radius || 0;
+    const small = Math.max(w, h, d) < 0.72;
+    if (small && obj.castShadow) roomPerfState.tinyShadowCasters.push(obj);
+    if (small && !obj.userData.keepLowDetail && obj.parent !== blackjackCardGroup && obj.parent !== blackjackChipGroup && obj.parent !== blackjackStatusGroup) {
+      roomPerfState.lowDetail.push(obj);
+    }
+  });
+}
+
+function applyRoomPerformanceBudget(tier, preset) {
+  if (!roomGroup) return;
+  prepareRoomPerformanceBudget();
+  const lowDetailVisible = !(MOBILE && (tier === 'low' || tier === 'balanced'));
+  for (const obj of roomPerfState.lowDetail) obj.visible = lowDetailVisible;
+  const allowTinyShadows = !!(preset && preset.shadow > 0 && !MOBILE && (tier === 'high' || tier === 'ultra'));
+  for (const obj of roomPerfState.tinyShadowCasters) obj.castShadow = allowTinyShadows;
+  renderer.shadowMap.autoUpdate = !!(preset && preset.shadow > 0 && (!MOBILE || tier === 'ultra'));
+}
 
 try {
   buildCustomRoom();

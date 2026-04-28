@@ -130,6 +130,7 @@ function applyGraphicsQuality(save=true, notify=false) {
     s.intensity = enabled ? (s.userData.baseIntensity || s.intensity) * q.light : 0;
     s.shadow.mapSize.set(Math.min(q.shadowMap, 1024), Math.min(q.shadowMap, 1024));
   }
+  if (typeof applyRoomPerformanceBudget === 'function') applyRoomPerformanceBudget(graphicsQuality, q);
   if (save) localStorage.setItem('viberoom.graphics', graphicsQuality);
   syncGraphicsSelect();
   if (notify) showPerformanceToast(`Graphics: ${q.label}`);
